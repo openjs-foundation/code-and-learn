@@ -30,7 +30,7 @@ Check out the list of already [proposed Code&Learn sessions](https://github.com/
 
 #### Propose Your Session
 
-If you are interested in contributing to a specific area that is not already covered in the proposed sessions you can [create a new issue](https://github.com/openjs-foundation/code-and-learn/issues/new) and we will try to find the appropiate faciliator of the project for it. Please understand that a proposed session needs to have at least 5-10 attendees that are also interested to contribute in the session.
+If you are interested in contributing to a specific area that is not already covered in the proposed sessions you can [create a new issue](https://github.com/openjs-foundation/code-and-learn/issues/new?assignees=christian-bromann%2C+evahowe%2C+jorydotcom%2C+keywordnew&labels=Session+Proposal&template=session-proposal.md&title=Session+Topic%3A+) and we will try to find the appropiate faciliator of the project for it. Please understand that a proposed session needs to have at least 5-10 attendees that are also interested to contribute in the session.
 
 ## Participating Projects
 
