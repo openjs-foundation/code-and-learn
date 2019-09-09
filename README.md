@@ -63,6 +63,6 @@ If you are interested in contributing to a specific area that is not already cov
 [![QUnit](https://openjsf.org/wp-content/uploads/sites/84/2019/05/qunit_medium.png "QUnit")](https://qunitjs.com/)
 [![JerryScript](https://openjsf.org/wp-content/uploads/sites/84/2019/05/jerryscript_medium.png "JerryScript")](https://jerryscript.net/)
 
-## [Code Of Conduct](https://github.com/openjs-foundation/cross-project-council/blob/master/CODE_OF_CONDUCT.md#code-of-conduct)
+## [Code Of Conduct](https://github.com/openjs-foundation/code-and-learn/blob/master/CODE_OF_CONDUCT.md#code-of-conduct)
 
 In the interest of fostering an open and welcoming environment, we as organizers, contributors and maintainers pledge to make participation for the event, in our projects and community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
