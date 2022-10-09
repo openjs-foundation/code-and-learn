@@ -34,7 +34,7 @@ If you are interested in contributing to a specific area that is not already cov
 
 ## Participating Projects
 
-[![Node.js](https://openjsf.org/wp-content/uploads/sites/84/2019/05/NodeJS_New_Pantone_medium.png "Node.js")](https://nodejs.org)
+[![Node.js](https://openjsf.org/wp-content/uploads/sites/84/2019/05/NodeJS_New_Pantone_medium.png "Node.js")](https://nodejs.dev)
 [![Appium](https://openjsf.org/wp-content/uploads/sites/84/2019/05/appium_medium.png "Appium")](http://appium.io/)
 [![Dojo](https://openjsf.org/wp-content/uploads/sites/84/2019/05/dojo_medium.png "Dojo")](https://dojotoolkit.org/)
 [![webpack](https://openjsf.org/wp-content/uploads/sites/84/2019/05/webpack_medium.png "webpack")](https://webpack.js.org/)
