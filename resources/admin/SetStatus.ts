@@ -10,10 +10,10 @@
  * - 'uncompletable' removes it from the pool for good.
  *
  * 'claimed' comes from /api/admin/assign, and 'flagged' only from attendee
- * reports.
+ * reports. Runs under the pool lock, like every other claim-state transition.
  */
 import { currentUser, json, requireAdmin, OpenResource } from '../shared/auth.ts';
-import { isHttpUrl } from '../shared/tasks.ts';
+import { isHttpUrl, withPoolLock } from '../shared/tasks.ts';
 import { SYSTEM, Task, type TaskRecord } from '../shared/harper.ts';
 
 export class SetStatus extends OpenResource {
@@ -28,77 +28,80 @@ export class SetStatus extends OpenResource {
 			completedBy?: unknown;
 		};
 		if (!body.taskId) return json(400, { error: 'taskId is required' });
-
-		const task = (await Task.get(String(body.taskId), SYSTEM)) as TaskRecord | undefined;
-		if (!task) return json(404, { error: 'task_not_found' });
-
-		if (body.status === 'available') {
-			await Task.patch(
-				task.id,
-				{
-					status: 'available',
-					assignedTo: null,
-					assignedName: null,
-					assignedAt: null,
-					completedBy: null,
-					completedAt: null,
-					evidenceUrl: null,
-					uncompletableReason: null,
-					uncompletableBy: null,
-					uncompletableAt: null,
-				},
-				SYSTEM,
-			);
-			return json(200, { ok: true });
+		if (!['available', 'completed', 'uncompletable'].includes(body.status as string)) {
+			return json(400, { error: 'status must be available, completed, or uncompletable' });
 		}
+		const evidenceUrl = body.evidenceUrl == null ? null : String(body.evidenceUrl);
+		if (body.status === 'completed' && evidenceUrl && !isHttpUrl(evidenceUrl)) {
+			return json(400, { error: 'evidence_url_invalid' });
+		}
+		// Resolved before the lock: inside it, getContext() is the lock's
+		// transaction, not this request's session.
+		const admin = await currentUser();
 
-		if (body.status === 'completed') {
-			const evidenceUrl = body.evidenceUrl == null ? null : String(body.evidenceUrl);
-			if (evidenceUrl && !isHttpUrl(evidenceUrl)) {
-				return json(400, { error: 'evidence_url_invalid' });
+		const refusal = await withPoolLock(async (context) => {
+			const task = (await Task.get(String(body.taskId), context)) as TaskRecord | undefined;
+			if (!task) return json(404, { error: 'task_not_found' });
+
+			if (body.status === 'available') {
+				await Task.patch(
+					task.id,
+					{
+						status: 'available',
+						assignedTo: null,
+						assignedName: null,
+						assignedAt: null,
+						completedBy: null,
+						completedAt: null,
+						evidenceUrl: null,
+						uncompletableReason: null,
+						uncompletableBy: null,
+						uncompletableAt: null,
+					},
+					context,
+				);
+			} else if (body.status === 'completed') {
+				const completedBy =
+					String(body.completedBy ?? '')
+						.trim()
+						.toLowerCase() ||
+					task.assignedTo ||
+					admin?.id ||
+					'organizer';
+				await Task.patch(
+					task.id,
+					{
+						status: 'completed',
+						completedBy,
+						completedAt: Date.now(),
+						evidenceUrl,
+						assignedTo: null,
+						assignedName: null,
+						assignedAt: null,
+					},
+					context,
+				);
+			} else {
+				await Task.patch(
+					task.id,
+					{
+						status: 'uncompletable',
+						uncompletableReason: task.uncompletableReason ?? 'Removed by an organizer.',
+						uncompletableBy: admin?.id ?? null,
+						uncompletableAt: Date.now(),
+						assignedTo: null,
+						assignedName: null,
+						assignedAt: null,
+					},
+					context,
+				);
 			}
-			const admin = await currentUser();
-			const completedBy =
-				String(body.completedBy ?? '')
-					.trim()
-					.toLowerCase() ||
-				task.assignedTo ||
-				admin?.id ||
-				'organizer';
-			await Task.patch(
-				task.id,
-				{
-					status: 'completed',
-					completedBy,
-					completedAt: Date.now(),
-					evidenceUrl,
-					assignedTo: null,
-					assignedName: null,
-					assignedAt: null,
-				},
-				SYSTEM,
-			);
-			return json(200, { ok: true, task: await Task.get(task.id, SYSTEM) });
+			return null;
+		});
+		if (refusal) return refusal;
+		if (body.status === 'completed') {
+			return json(200, { ok: true, task: await Task.get(String(body.taskId), SYSTEM) });
 		}
-
-		if (body.status === 'uncompletable') {
-			const admin = await currentUser();
-			await Task.patch(
-				task.id,
-				{
-					status: 'uncompletable',
-					uncompletableReason: task.uncompletableReason ?? 'Removed by an organizer.',
-					uncompletableBy: admin?.id ?? null,
-					uncompletableAt: Date.now(),
-					assignedTo: null,
-					assignedName: null,
-					assignedAt: null,
-				},
-				SYSTEM,
-			);
-			return json(200, { ok: true });
-		}
-
-		return json(400, { error: 'status must be available, completed, or uncompletable' });
+		return json(200, { ok: true });
 	}
 }

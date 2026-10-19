@@ -9,12 +9,17 @@
  * complete.
  *
  * While the pool is hidden (Event tab, before the event starts), non-admin
- * reads see nothing: the collection is empty and single records are absent.
- * Admins keep the full view — their console reads this same surface.
+ * reads see nothing: the collection is empty and single records are absent,
+ * and WebSocket subscribers receive no events. Admins keep the full view —
+ * their console reads this same surface.
  */
 import { currentUser } from './shared/auth.ts';
-import { getClaims } from './Settings.ts';
+import { getClaims, isPoolHiddenNow } from './Settings.ts';
 import { Task, type TaskRecord } from './shared/harper.ts';
+
+interface SubscriptionRequest {
+	eventFilter?: () => boolean;
+}
 
 export class AvailableTasks extends Task {
 	// Harper consults these as instance methods (REST entry and WebSocket
@@ -30,6 +35,17 @@ export class AvailableTasks extends Task {
 	}
 	allowDelete() {
 		return false;
+	}
+
+	// WebSocket subscriptions never pass through get() below, and their events
+	// carry full records, so the hidden gate has to live here too. It is checked
+	// per event rather than once at connect: a socket opened while the pool was
+	// open goes quiet the moment it is hidden, and resumes when it reopens.
+	async subscribe(request: SubscriptionRequest) {
+		if (!(await currentUser())?.isAdmin) {
+			request.eventFilter = () => !isPoolHiddenNow();
+		}
+		return super.subscribe(request as never);
 	}
 
 	static async get(target: { id?: string | number }) {

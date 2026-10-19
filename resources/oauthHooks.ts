@@ -22,15 +22,15 @@ registerHooks({
 		if (!login) return { status: 'denied', error: 'missing_github_login' };
 
 		const existing = (await User.get(login, SYSTEM)) as UserRecord | undefined;
-		await User.put(
-			record({
-				id: login,
-				name: oauthUser?.name || claims.name || existing?.name || login,
-				avatarUrl: claims.avatar_url || existing?.avatarUrl || null,
-				isAdmin: Boolean(existing?.isAdmin) || adminAllowlist().includes(login),
-			}),
-			SYSTEM,
-		);
+		const profile = {
+			name: oauthUser?.name || claims.name || existing?.name || login,
+			avatarUrl: claims.avatar_url || existing?.avatarUrl || null,
+			isAdmin: Boolean(existing?.isAdmin) || adminAllowlist().includes(login),
+		};
+		// Patch, never put, a returning user: put replaces the whole record, which
+		// would drop moderation state (ban, timeout) on every sign-in.
+		if (existing) await User.patch(login, profile, SYSTEM);
+		else await User.put(record({ id: login, ...profile }), SYSTEM);
 		return { status: 'ok', user: login };
 	},
 });

@@ -1,7 +1,9 @@
 /**
  * Task validation + import normalization shared by the admin endpoints and
- * the local-dev bootstrap.
+ * the local-dev bootstrap, plus the pool lock every claim-state transition
+ * runs under.
  */
+import { transaction } from 'harper';
 import { query, SYSTEM, Task, type Difficulty, type TaskLink, type TaskRecord } from './harper.ts';
 import { renderMarkdown } from './render.ts';
 
@@ -152,7 +154,10 @@ export function validateTaskInput(
 	return { task: out };
 }
 
-export async function findActiveTask(login: string): Promise<TaskRecord | null> {
+export async function findActiveTask(
+	login: string,
+	context: object = SYSTEM,
+): Promise<TaskRecord | null> {
 	const results = Task.search(
 		query({
 			conditions: [
@@ -160,8 +165,73 @@ export async function findActiveTask(login: string): Promise<TaskRecord | null> 
 				{ attribute: 'status', value: 'claimed' },
 			],
 		}),
-		SYSTEM,
+		context,
 	) as AsyncIterable<TaskRecord>;
 	for await (const task of results) return task;
 	return null;
+}
+
+interface KeyLocks {
+	tryLock(_key: string, _onUnlocked?: () => void): boolean;
+	unlock(_key: string): boolean;
+}
+
+const POOL_LOCK = 'code-and-learn:pool-lock';
+// A transition takes milliseconds. A lock held this long means its holder
+// died (a crashed worker thread), so it is broken rather than waited on
+// forever mid-event.
+const POOL_LOCK_STALE_MS = 10_000;
+let warnedNoLock = false;
+
+/**
+ * Runs one pool state transition (claim, release, complete, assign, …)
+ * exclusively across Harper's worker threads, in its own transaction.
+ *
+ * Harper has no compare-and-set for application writes — a patch merges onto
+ * whatever committed last — so a check-then-write ("is the task open?", "do
+ * they already hold one?") is only safe if no other transition interleaves.
+ * The table store's key lock is shared by every thread in the process; the
+ * transaction commits before the lock is released, so the next holder reads
+ * the result. Process-wide only: it does not coordinate replicated nodes.
+ *
+ * `body` must do all its reads and writes through the context it is given,
+ * and must not read the session (getContext() is the transaction's inside):
+ * resolve the caller before entering.
+ */
+export async function withPoolLock<T>(body: (_context: object) => Promise<T>): Promise<T> {
+	const context = {};
+	const store = (Task as unknown as { primaryStore?: Partial<KeyLocks> }).primaryStore;
+	if (typeof store?.tryLock !== 'function' || typeof store.unlock !== 'function') {
+		// The key lock is a storage-engine feature (RocksDB). Without it, run
+		// unlocked, as transitions did before the lock existed, rather than fail.
+		if (!warnedNoLock) console.warn('table store has no key lock; pool transitions run unlocked');
+		warnedNoLock = true;
+		return transaction(context, () => body(context));
+	}
+	const locks = store as KeyLocks;
+	let staleAt = Date.now() + POOL_LOCK_STALE_MS;
+	for (;;) {
+		let wake: () => void = () => {};
+		const released = new Promise<void>((resolve) => (wake = resolve));
+		if (locks.tryLock(POOL_LOCK, () => wake())) break;
+		const remaining = staleAt - Date.now();
+		if (remaining <= 0) {
+			console.warn('pool lock held past its stale limit; breaking it');
+			locks.unlock(POOL_LOCK);
+			// Restart the clock: whoever wins the freed lock is a live holder.
+			staleAt = Date.now() + POOL_LOCK_STALE_MS;
+			continue;
+		}
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		await Promise.race([
+			released,
+			new Promise((resolve) => (timer = setTimeout(resolve, remaining))),
+		]);
+		clearTimeout(timer);
+	}
+	try {
+		return await transaction(context, () => body(context));
+	} finally {
+		locks.unlock(POOL_LOCK);
+	}
 }

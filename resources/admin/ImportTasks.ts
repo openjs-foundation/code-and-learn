@@ -5,8 +5,9 @@
  * or both keys at once — so data/contribution-tasks.json and
  * data/contribution-guides.json each paste straight into the admin importer.
  * Tasks accept both the app shape and the official curated shape (see
- * shared/tasks.ts); every imported task starts as open. Guides upsert by id
- * (the theme), so editing a guide is just a re-import.
+ * shared/tasks.ts); every imported task starts as open, and a task whose id
+ * already exists is skipped and reported, never overwritten. Guides upsert by
+ * id (the theme), so editing a guide is just a re-import.
  */
 import { json, requireAdmin, OpenResource } from '../shared/auth.ts';
 import { MAX_IMPORT_BATCH, validateTaskInput } from '../shared/tasks.ts';
@@ -49,7 +50,17 @@ export class ImportTasks extends OpenResource {
 				});
 				continue;
 			}
+			// Tasks never overwrite: an id already in the pool is reported and
+			// skipped (create 409s on it), so a re-import can't clobber live state.
 			const id = (input as { id?: unknown })?.id;
+			if (id && (await Task.get(String(id), SYSTEM))) {
+				errors.push({
+					index,
+					title: (input as { title?: string })?.title ?? null,
+					problem: `id "${String(id)}" already exists`,
+				});
+				continue;
+			}
 			await Task.create(
 				{ ...(id ? { id: String(id) } : {}), ...task, status: 'available' },
 				SYSTEM,

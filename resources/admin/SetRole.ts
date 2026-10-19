@@ -33,15 +33,13 @@ export class SetRole extends OpenResource {
 		if (!login) return json(400, { error: 'login is required' });
 
 		const existing = (await User.get(login, SYSTEM)) as UserRecord | undefined;
-		await User.put(
-			record({
-				id: login,
-				name: existing?.name || login,
-				avatarUrl: existing?.avatarUrl || null,
-				isAdmin: true,
-			}),
-			SYSTEM,
-		);
+		// Patch an existing user so the rest of their record (moderation state)
+		// survives; put only creates the placeholder for a not-yet-seen login.
+		if (existing) {
+			await User.patch(login, { isAdmin: true }, SYSTEM);
+		} else {
+			await User.put(record({ id: login, name: login, avatarUrl: null, isAdmin: true }), SYSTEM);
+		}
 		return json(200, { ok: true });
 	}
 

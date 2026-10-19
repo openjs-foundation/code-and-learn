@@ -3,9 +3,12 @@
  * - POST /api/release        — put it back in the pool
  * - POST /api/complete       — submit evidence (PR link) and finish
  * - POST /api/uncompletable  — report it impossible; parks it for admin review
+ *
+ * Each runs under the pool lock, so it can't interleave with a claim or an
+ * organizer reassigning the same task.
  */
 import { currentUser, json, restrictionOf, sessionLogin, OpenResource } from './shared/auth.ts';
-import { findActiveTask, isHttpUrl } from './shared/tasks.ts';
+import { findActiveTask, isHttpUrl, withPoolLock } from './shared/tasks.ts';
 import { SYSTEM, Task } from './shared/harper.ts';
 
 export class ReleaseTask extends OpenResource {
@@ -13,20 +16,22 @@ export class ReleaseTask extends OpenResource {
 		const login = sessionLogin();
 		if (!login) return json(401, { error: 'sign_in_required' });
 
-		const active = await findActiveTask(login);
-		if (!active) return json(409, { error: 'no_active_task' });
+		return withPoolLock(async (context) => {
+			const active = await findActiveTask(login, context);
+			if (!active) return json(409, { error: 'no_active_task' });
 
-		await Task.patch(
-			active.id,
-			{
-				status: 'available',
-				assignedTo: null,
-				assignedName: null,
-				assignedAt: null,
-			},
-			SYSTEM,
-		);
-		return json(200, { ok: true });
+			await Task.patch(
+				active.id,
+				{
+					status: 'available',
+					assignedTo: null,
+					assignedName: null,
+					assignedAt: null,
+				},
+				context,
+			);
+			return json(200, { ok: true });
+		});
 	}
 }
 
@@ -46,23 +51,28 @@ export class CompleteTask extends OpenResource {
 			});
 		}
 
-		const active = await findActiveTask(login);
-		if (!active) return json(409, { error: 'no_active_task' });
+		// Resolves to the completed task's id, or the refusal to send back.
+		const outcome = await withPoolLock(async (context): Promise<string | Response> => {
+			const active = await findActiveTask(login, context);
+			if (!active) return json(409, { error: 'no_active_task' });
 
-		await Task.patch(
-			active.id,
-			{
-				status: 'completed',
-				completedBy: login,
-				completedAt: Date.now(),
-				evidenceUrl: String(evidenceUrl),
-				assignedTo: null,
-				assignedName: null,
-				assignedAt: null,
-			},
-			SYSTEM,
-		);
-		return json(200, { ok: true, task: await Task.get(active.id, SYSTEM) });
+			await Task.patch(
+				active.id,
+				{
+					status: 'completed',
+					completedBy: login,
+					completedAt: Date.now(),
+					evidenceUrl: String(evidenceUrl),
+					assignedTo: null,
+					assignedName: null,
+					assignedAt: null,
+				},
+				context,
+			);
+			return active.id;
+		});
+		if (outcome instanceof Response) return outcome;
+		return json(200, { ok: true, task: await Task.get(outcome, SYSTEM) });
 	}
 }
 
@@ -83,22 +93,24 @@ export class ReportUncompletable extends OpenResource {
 			});
 		}
 
-		const active = await findActiveTask(login);
-		if (!active) return json(409, { error: 'no_active_task' });
+		return withPoolLock(async (context) => {
+			const active = await findActiveTask(login, context);
+			if (!active) return json(409, { error: 'no_active_task' });
 
-		await Task.patch(
-			active.id,
-			{
-				status: 'flagged',
-				uncompletableReason: reason.slice(0, 500),
-				uncompletableBy: login,
-				uncompletableAt: Date.now(),
-				assignedTo: null,
-				assignedName: null,
-				assignedAt: null,
-			},
-			SYSTEM,
-		);
-		return json(200, { ok: true });
+			await Task.patch(
+				active.id,
+				{
+					status: 'flagged',
+					uncompletableReason: reason.slice(0, 500),
+					uncompletableBy: login,
+					uncompletableAt: Date.now(),
+					assignedTo: null,
+					assignedName: null,
+					assignedAt: null,
+				},
+				context,
+			);
+			return json(200, { ok: true });
+		});
 	}
 }

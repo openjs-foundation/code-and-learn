@@ -53,6 +53,25 @@ export async function getClaims(): Promise<ClaimsSetting> {
 	return value ? { ...DEFAULT_CLAIMS, ...value } : DEFAULT_CLAIMS;
 }
 
+interface EntryStore {
+	getEntry(_id: string): { value?: SettingRecord } | undefined;
+}
+
+// Synchronous read of claims.hidden, for subscription event filters (Harper
+// requires them to be synchronous). Reads the latest committed row straight
+// from the table's store, so it is current across worker threads. Fails
+// closed: if the read throws, the pool counts as hidden.
+export function isPoolHiddenNow(): boolean {
+	try {
+		const store = (Setting as unknown as { primaryStore: EntryStore }).primaryStore;
+		const value = store.getEntry('claims')?.value?.value as Partial<ClaimsSetting> | undefined;
+		return Boolean(value?.hidden);
+	} catch (error) {
+		console.error('claims read failed; treating the pool as hidden:', error);
+		return true;
+	}
+}
+
 export class Settings extends OpenResource {
 	static async get() {
 		return { announcement: await getAnnouncement(), claims: await getClaims() };
