@@ -1,0 +1,182 @@
+# Code and Learn
+
+The task directory for the Node.js **Code and Learn** workshop (part of RenderATL). Attendees
+browse a curated pool of first-contribution tasks, claim one (exclusively, one at a time),
+work it with mentors in the room, and mark it complete with a link to their open pull
+request. Organizers manage the pool — including bulk import — from an admin section.
+
+Built as a single [Harper](https://harper.fast) application: database, REST + WebSocket API,
+GitHub OAuth, and the frontend in one deployable unit. The frontend is a multi-page React
+app built with [Vite](https://vite.dev) and run inside Harper by
+[`@harperfast/vite`](https://github.com/HarperFast/vite) — server-rendered per navigation
+(`src/entry-server.jsx`), hydrated per page (`src/entry-client.jsx`) — using
+[`@node-core/ui-components`](https://github.com/nodejs/nodejs.org/tree/main/packages/ui-components),
+the Node.js project's own design system.
+
+## How it works
+
+| Path         | What it is                                                                                                                               |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`          | Live directory: the pool mosaic (every task, colored by status, updating over WebSocket) plus the filterable worklist                    |
+| `/tasks/:id` | Task detail with claim action                                                                                                            |
+| `/me`        | Your claimed task: release it, or submit evidence (PR link) to complete it                                                               |
+| `/setup`     | The general guide: pre-event environment prep (dev container or local build) plus the day-of contribution loop, troubleshooting included |
+| `/admin`     | Organizer tools: task CRUD, bulk JSON import, unassign, admin management                                                                 |
+
+Rules enforced server-side: claiming is exclusive (a claimed task is locked), each attendee
+holds at most one active task, releasing is self-serve, completing requires an `http(s)`
+evidence URL and immediately frees the attendee to claim again. Browsing is public;
+claiming needs GitHub sign-in; admin actions need an admin account.
+
+## Local development
+
+```bash
+npm install
+cp .env.example .env   # fill in the GitHub OAuth credentials
+npm run dev
+```
+
+`npm run dev` is one process: `harper dev .` on <http://localhost:9926> — database, API,
+OAuth, **and** the Vite dev server with HMR, all on one origin. `@harperfast/vite` runs
+Vite in middleware mode inside Harper, so there is no proxy and no second port.
+
+For the full production shape locally (the plugin builds the client + SSR bundles, Harper's
+`static` plugin serves the assets, and `src/entry-server.jsx` renders each navigation):
+
+```bash
+npm run start   # harper run .
+# → http://localhost:9926
+```
+
+`npm run build` (`vite build`) exists for CI-style checks; neither dev nor production
+serving needs it — the plugin builds on the node.
+
+### Linting and formatting
+
+ESLint (flat config, with the React plugins) and Prettier cover the whole repo:
+
+```bash
+npm run lint          # eslint .
+npm run lint:fix      # eslint . --fix
+npm run format        # prettier --write .
+npm run format:check  # prettier --check .
+```
+
+Both run in CI on every push and pull request, alongside `vite build`.
+
+Useful env vars for local dev (in `.env`):
+
+- `LOCAL_DATA_FILE=data/contribution-tasks.json` — loads a JSON task file (the curated
+  event list, or the bulk-import shape) as the starting pool. Idempotent across restarts;
+  entries may pin their own `id`.
+- `LOCAL_GUIDES_FILE=data/contribution-guides.json` — loads the per-theme how-to guides
+  each task references by its `theme`. Also idempotent.
+- `LOCAL_DEV_LOGIN=true` — bypasses GitHub auth entirely; every request runs as a synthetic
+  admin user (`local-dev`), so the claim flow and `/admin` are testable without OAuth
+  credentials. **Never set this in production.**
+- `ADMIN_GITHUB_LOGINS=your-login` — you become an admin on your next real sign-in.
+
+### GitHub OAuth app
+
+The workshop's OAuth app (credentials already exist) needs its **Authorization callback
+URL** set to:
+
+- production: `https://<your-domain>/oauth/github/callback`
+- local dev: `http://localhost:9926/oauth/github/callback`
+
+Sign-in flows through Harper (`/oauth/github/login`) on the same port (9926) that serves
+the app in development and production alike.
+
+## Deploying to Harper Fabric
+
+**CI/CD (the normal path):** every push and pull request runs lint, format check, and
+`vite build` (`.github/workflows/ci.yml`); a push to `main` that passes then deploys to
+Harper Fabric with `harper deploy`. Configure these secrets on the repo's
+`production` environment (Settings → Environments):
+
+- `HARPER_TARGET` — the cluster's Application URL, from its **Config → Overview** page
+- `HARPER_CLI_USERNAME` / `HARPER_CLI_PASSWORD` — cluster credentials the CLI
+  authenticates with (read by `harper deploy` as `HARPER_CLI_*` env vars)
+
+**Manually, from a machine:**
+
+```bash
+harper login <Application URL>   # once; from your cluster's Config → Overview page
+npm run deploy                   # harper deploy project=code-and-learn restart=true
+```
+
+No build step before deploying: `@harperfast/vite` builds on the node at startup and
+rebuilds when watched source changes.
+
+Set these runtime environment variables on the cluster (Fabric → application settings):
+
+- `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET`
+- `OAUTH_REDIRECT_URI=https://<your-domain>/oauth/callback` — required in production; the
+  plugin appends the provider name
+- `ADMIN_GITHUB_LOGINS=login1,login2` — seed admins; they can promote others from `/admin`
+
+Sessions must be enabled on the instance (`authentication.enableSessions: true` in the
+instance's `harper-config.yaml`) for cookie-based OAuth sessions.
+
+## Bulk import format
+
+**Admin → Bulk import** accepts a JSON array, `{ "tasks": [...] }`, or `{ "guides": [...] }`
+(at most 500 entries per batch) — so `data/contribution-tasks.json` and
+`data/contribution-guides.json` each paste in as-is. Every imported task starts as open;
+guides upsert by theme, so re-importing a guide updates it everywhere at once. The same
+tab's **Export pool** button downloads `{ tasks, guides }` in this shape (live pool state
+included), so a mid-event backup re-imports as-is. Tasks also accept this app-level shape:
+
+```json
+[
+  {
+    "title": "Fix a typo in the fs docs",
+    "summary": "One line shown in the directory",
+    "description": "Full **markdown** body with steps.",
+    "difficulty": "beginner",
+    "area": "docs",
+    "skills": ["markdown"],
+    "estimatedMinutes": 20,
+    "links": [
+      {
+        "label": "Contributing guide",
+        "url": "https://github.com/nodejs/node/blob/main/CONTRIBUTING.md"
+      }
+    ]
+  }
+]
+```
+
+- `difficulty`: `beginner` | `intermediate` | `advanced`
+- `area`: free-form, lowercase (e.g. `docs`, `test`, `lib`, `src`, `website`, `triage`)
+- `skills`: free-form lowercase list, drives the skill filter
+- `estimatedMinutes`: 1–480
+
+## Task data
+
+The real event data lives in `data/` and stays **separate from the app**: tasks
+(`contribution-tasks.json`) carry only their specifics, while the generic how-to for each
+task type lives once per theme in `contribution-guides.json` — so adjusting a general
+description never means touching every task of that type. The app joins them at render
+time by the task's `theme`. See [`data/README.md`](data/README.md) for the shape, the
+generators that produced both files, and the import instructions; both files import
+through **Admin → Bulk import** (guides first, then tasks) or the `LOCAL_*` env vars
+above.
+
+Tasks in the curated shape map onto the app like so: `tier` becomes difficulty
+(easy → beginner, medium → intermediate, hard → advanced), `theme` becomes the area
+filter, `subsystem` the skill filter, and the task's own specifics (files, verify
+command, commit prefix) fold into its description.
+
+## Project layout
+
+```
+config.yaml            Harper component config (plugins, OAuth, Vite + static serving)
+schema/tables.graphql  Task + User + Guide + Setting tables
+resources/             Endpoints (TypeScript, one file per surface; index.ts is the URL map)
+index.html             The single HTML template (theme boot, titles, SSR outlet)
+vite.config.mjs        Vite 8 config; helpers under config/
+src/                   React app: entry-server/entry-client, app/ (routes, pages), components/
+data/                  The curated event data: tasks + per-theme guides (see data/README.md)
+dist/                  Vite build output, served by Harper's static plugin (generated)
+```

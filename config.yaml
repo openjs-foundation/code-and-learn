@@ -1,0 +1,45 @@
+# Harper component configuration for the Code and Learn task directory.
+# Order matters: loadEnv must come first so every later plugin sees process.env.
+
+loadEnv:
+  files: '.env'
+
+graphqlSchema:
+  files: 'schema/*.graphql'
+
+# Custom resource endpoints (TypeScript, run via Node type stripping). The
+# barrel composes the URL map; implementations live in resources/**.
+jsResource:
+  files: 'resources/index.ts'
+
+'@harperfast/oauth':
+  package: '@harperfast/oauth'
+  # Public origin + /oauth/callback. Defaults to http://localhost:9926/oauth/callback
+  # for local dev; REQUIRED on any deployed instance (see README).
+  redirectUri: ${OAUTH_REDIRECT_URI}
+  postLoginRedirect: '/'
+  providers:
+    github:
+      clientId: ${OAUTH_GITHUB_CLIENT_ID}
+      clientSecret: ${OAUTH_GITHUB_CLIENT_SECRET}
+      scope: 'read:user'
+
+rest: true
+
+# The Vite frontend, run inside Harper. In `harper dev` this serves the app
+# with HMR on Harper's own port (one origin for pages, API, and OAuth); in
+# `harper run` it builds the client + SSR bundles and renders the HTML
+# document per navigation via src/entry-server.jsx. Listed before `static`
+# so its dev server wins in dev; non-HTML requests fall through to the API.
+'@harperfast/vite':
+  package: '@harperfast/vite'
+  files: 'src/**/*'
+  output: 'dist'
+  ssr: 'src/entry-server.jsx'
+
+# Serves the built assets from the Vite output. `index: false` leaves HTML
+# documents to the SSR render above; misses fall through to it.
+static:
+  files: 'dist/**'
+  after: 'rest'
+  index: false

@@ -1,0 +1,22 @@
+diff --git a/node_modules/@harperfast/vite/dist/production.js b/node_modules/@harperfast/vite/dist/production.js
+index 1abc36b..dd58304 100644
+--- a/node_modules/@harperfast/vite/dist/production.js
++++ b/node_modules/@harperfast/vite/dist/production.js
+@@ -171,6 +171,17 @@ export async function setupProduction(scope, ssrEntry) {
+     registerHttp(scope, (req, res, next) => {
+         if (!acceptsHtml(req))
+             return next();
++        // PATCH (@harperfast/vite#ssr-oauth-shadow): the SSR handler is registered `runFirst` and
++        // claims requests by `Accept: text/html` alone, ignoring the path — so it shadows first-party
++        // resources that own an HTML GET route, notably @harperfast/oauth's browser-facing
++        // /oauth/<provider>/login and /oauth/<provider>/callback redirects. Fall through for /oauth/*
++        // so those navigations reach the OAuth plugin instead of rendering the SPA (which 404s the
++        // login flow). Remove once the upstream `ssrExclude` option lands.
++        {
++            const path = (req.url ?? '').split('?')[0];
++            if (path === '/oauth' || path.startsWith('/oauth/'))
++                return next();
++        }
+         // A HEAD asks only for headers; don't run the (potentially DB-touching) render for it.
+         if ((req.method ?? 'GET') === 'HEAD') {
+             res.statusCode = 200;

@@ -1,0 +1,49 @@
+{
+  "name": "code-and-learn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Task directory for the Node.js Code and Learn workshop at RenderATL",
+  "scripts": {
+    "postinstall": "patch-package",
+    "dev": "harper dev .",
+    "build": "vite build",
+    "start": "harper run .",
+    "deploy": "harper deploy project=code-and-learn restart=true install_allow_scripts=true",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.5",
+    "@fontsource/open-sans": "^5.2.5",
+    "@harperfast/oauth": "^2.4.0",
+    "@harperfast/vite": "^1.1.6",
+    "@node-core/rehype-shiki": "^1.4.3",
+    "@node-core/ui-components": "^1.7.5",
+    "@radix-ui/react-tabs": "^1.1.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "classnames": "^2.5.1",
+    "marked": "^18.0.9",
+    "marked-highlight": "^2.2.4",
+    "patch-package": "^8.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vite": "^8.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/parser": "^8.67.0",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-dom": "^5.18.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-x": "^5.18.3",
+    "globals": "^17.9.0",
+    "harper": "^5.2.1",
+    "prettier": "^3.9.6"
+  }
+}

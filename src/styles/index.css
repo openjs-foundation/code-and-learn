@@ -1,0 +1,12 @@
+/* The full page stylesheet, linked from index.html so first paint is styled
+   in every mode — dev and production, before any JS loads. Vite inlines these
+   imports into one processed sheet at build time. Component-scoped CSS
+   modules (the design system's) still travel with their JS chunks. */
+@import '@fontsource/open-sans/400.css';
+@import '@fontsource/open-sans/600.css';
+@import '@fontsource/open-sans/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@node-core/ui-components/styles/index.css';
+@import '@node-core/rehype-shiki/index.css';
+@import './global.css';

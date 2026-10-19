@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="description"
+			content="Curated first-contribution tasks for the Node.js Code and Learn workshop."
+		/>
+		<title>Code and Learn — Node.js contribution tasks</title>
+		<link rel="stylesheet" href="/src/styles/index.css" />
+		<script>
+			// Resolve the theme before first paint to avoid a flash.
+			(() => {
+				const stored = localStorage.getItem('cl-theme');
+				const preference = stored === 'light' || stored === 'dark' ? stored : 'system';
+				const dark =
+					preference === 'dark' ||
+					(preference === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+			})();
+			// Per-route titles, set before first paint. One template serves every
+			// route (the SSR entry routes inside it), so the title switches here;
+			// keep this map in step with src/app/routes.js.
+			(() => {
+				const path = location.pathname.replace(/\/+$/, '') || '/';
+				const title =
+					path === '/'
+						? null
+						: path.startsWith('/tasks/')
+							? 'Task — Code and Learn'
+							: {
+									'/me': 'My task — Code and Learn',
+									'/setup': 'Guide — Code and Learn',
+									'/admin': 'Admin — Code and Learn',
+								}[path] || 'Not found — Code and Learn';
+				if (title) document.title = title;
+			})();
+		</script>
+	</head>
+	<body>
+		<div id="app"><!--ssr-outlet--></div>
+		<script type="module" src="/src/entry-client.jsx"></script>
+	</body>
+</html>

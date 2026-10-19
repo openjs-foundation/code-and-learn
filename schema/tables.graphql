@@ -1,0 +1,71 @@
+# Data model for the Code and Learn task directory.
+# No table is @export-ed: the resources/ endpoints own every surface so that
+# read access can be public while writes stay session-gated.
+
+type Task @table {
+	id: ID @primaryKey
+	title: String
+	summary: String
+	description: String
+	# Rendered + highlighted into segments at write time
+	# (resources/shared/render.ts) so the browser ships no markdown or
+	# highlighting code.
+	descriptionRendered: Any
+	# Task type, keyed into the Guide table (e.g. spawnSync-helpers, doc). The
+	# task carries only its specifics; the generic how-to lives once per theme.
+	theme: String @indexed
+	difficulty: String @indexed
+	area: String @indexed
+	skills: [String] @indexed
+	estimatedMinutes: Int @indexed
+	links: Any
+
+	status: String @indexed
+	assignedTo: String @indexed
+	assignedName: String
+	assignedAt: Long
+	# Organizer login when the claim was placed by an admin; null for self-serve.
+	assignedBy: String
+	completedBy: String @indexed
+	completedAt: Long
+	evidenceUrl: String
+	uncompletableReason: String
+	uncompletableBy: String
+	uncompletableAt: Long
+
+	createdAt: Long @createdTime
+	updatedAt: Long @updatedTime
+}
+
+type User @table {
+	id: ID @primaryKey
+	name: String
+	avatarUrl: String
+	isAdmin: Boolean @indexed
+	bannedAt: Long
+	banReason: String
+	timeoutUntil: Long
+	createdAt: Long @createdTime
+	updatedAt: Long @updatedTime
+}
+
+# Event-wide switches admins flip live: the announcement banner and the
+# claim pause. One row per key; `value` holds the key's JSON payload.
+type Setting @table {
+	id: ID @primaryKey
+	value: Any
+	updatedAt: Long @updatedTime
+}
+
+# Per-task-type instruction set. One row per theme (Task.theme is the key),
+# holding the generic how-to shared by every task of that type, so tasks only
+# carry their own specifics and a guide edit applies everywhere at once.
+type Guide @table {
+	id: ID @primaryKey
+	title: String
+	summary: String
+	body: String
+	# Rendered + highlighted at write time, like Task.descriptionRendered.
+	bodyRendered: Any
+	updatedAt: Long @updatedTime
+}

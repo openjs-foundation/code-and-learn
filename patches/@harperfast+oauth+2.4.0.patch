@@ -1,0 +1,20 @@
+diff --git a/node_modules/@harperfast/oauth/dist/lib/handlers.js b/node_modules/@harperfast/oauth/dist/lib/handlers.js
+index cfb20ac..7af7b70 100644
+--- a/node_modules/@harperfast/oauth/dist/lib/handlers.js
++++ b/node_modules/@harperfast/oauth/dist/lib/handlers.js
+@@ -415,6 +415,15 @@ export async function clearOAuthSession(session, logger) {
+     if (typeof session.delete === 'function') {
+         await session.delete(session.id);
+     }
++    else if (typeof session.update === 'function') {
++        // PATCH (@harperfast/oauth ssr-oauth-logout): Harper's cookie-session
++        // attaches `update` but not `delete` (see harper security/auth.js), and
++        // `request.session` is a throwaway copy — so the in-memory clear below
++        // never persists and the user stays logged in. `update` performs a
++        // put() against hdb_session for the current session id, so clearing the
++        // identity through it actually persists the logout.
++        await session.update({ user: null, oauth: null, oauthUser: null });
++    }
+     else {
+         // Fallback for sessions without delete method - clear in-memory
+         session.user = null;

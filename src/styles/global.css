@@ -1,0 +1,1115 @@
+/* Page-level styles for the Code and Learn directory.
+   Built on the token vocabulary @node-core/ui-components ships
+   (--color-neutral-*, --color-brand-*, --color-warning-*, --color-info-*). */
+
+:root {
+	--font-open-sans: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-ibm-plex-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+	--cl-bg: var(--color-white);
+	--cl-fg: var(--color-neutral-950);
+	--cl-fg-soft: var(--color-neutral-800);
+	--cl-fg-faint: var(--color-neutral-700);
+	--cl-border: var(--color-neutral-200);
+	--cl-border-strong: var(--color-neutral-300);
+	--cl-surface: var(--color-neutral-100);
+	--cl-accent: var(--color-brand-600);
+	--cl-accent-strong: var(--color-brand-700);
+	--cl-accent-soft: var(--color-brand-100);
+	--cl-open: var(--color-brand-600);
+	--cl-open-soft: #eaf3e6;
+	--cl-held: #b97d1e;
+	--cl-held-soft: var(--color-warning-100);
+	--cl-done: var(--color-brand-900);
+	--cl-done-fill: var(--color-brand-900);
+	--cl-done-soft: var(--color-brand-200);
+	--cl-focus: var(--color-info-600, #0c7bb3);
+}
+
+[data-theme='dark'] {
+	--cl-bg: var(--color-neutral-950);
+	--cl-fg: var(--color-white);
+	--cl-fg-soft: var(--color-neutral-300);
+	--cl-fg-faint: var(--color-neutral-500);
+	--cl-border: var(--color-neutral-900);
+	--cl-border-strong: var(--color-neutral-800);
+	--cl-surface: #16202b;
+	--cl-accent: var(--color-brand-400);
+	--cl-accent-strong: var(--color-brand-300);
+	--cl-accent-soft: var(--color-brand-900);
+	--cl-open: var(--color-brand-400);
+	--cl-open-soft: #1d2c1c;
+	--cl-held: var(--color-warning-400);
+	--cl-held-soft: #33270f;
+	--cl-done: var(--color-brand-300);
+	/* Deliberately dimmer than the open-cell green: in dark mode the brightest
+	   cells must stay the claimable ones. */
+	--cl-done-fill: #2c682c;
+	--cl-done-soft: #234423;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	font-family: var(--font-open-sans);
+	background: var(--cl-bg);
+	color: var(--cl-fg);
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	margin: 0;
+	min-height: 100dvh;
+	display: flex;
+	flex-direction: column;
+	background: var(--cl-bg);
+	color: var(--cl-fg);
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+/* The hydration mount point wraps the whole page; display: contents keeps
+   body's flex column (footer pinned to the viewport bottom) working through
+   the extra element. */
+#app {
+	display: contents;
+}
+
+main {
+	flex: 1;
+	width: 100%;
+}
+
+a {
+	color: var(--cl-accent);
+}
+
+:focus-visible {
+	outline: 2px solid var(--cl-focus);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.cl-skip {
+	position: absolute;
+	left: 0;
+	top: 0;
+	z-index: 100;
+	padding: 0.5rem 1rem;
+	background: var(--cl-bg);
+	color: var(--cl-accent);
+	font-weight: 600;
+	transform: translateY(-120%);
+	transition: transform 150ms ease-out;
+}
+
+.cl-skip:focus-visible {
+	transform: translateY(0);
+}
+
+.cl-container {
+	width: 100%;
+	max-width: 74rem;
+	margin: 0 auto;
+	padding: 0 1.5rem;
+}
+
+/* ---------------------------------------------------------------- header -- */
+
+.cl-page-head {
+	position: relative;
+	padding: 2.5rem 0 1.5rem;
+}
+
+.cl-page-head h1 {
+	margin: 0 0 0.375rem;
+	font-size: 2.25rem;
+	line-height: 1.2;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+@media (max-width: 640px) {
+	.cl-page-head h1 {
+		font-size: 1.75rem;
+	}
+}
+
+.cl-page-head .cl-lede {
+	margin: 0;
+	max-width: 62ch;
+	color: var(--cl-fg-soft);
+}
+
+/* ---------------------------------------------------------------- mosaic -- */
+
+.cl-pulse {
+	margin: 1.25rem 0 0;
+}
+
+/* auto-fit (not auto-fill) collapses empty tracks so the pool always spans the
+   full container width: a dozen tasks make a wall of wide segments, a hundred
+   densify toward small squares across multiple rows. */
+.cl-mosaic {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(1.75rem, 1fr));
+	gap: 0.3125rem;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.cl-cell {
+	position: relative;
+	display: block;
+	height: clamp(2rem, 4.5vw, 3.25rem);
+	border-radius: 0.25rem;
+	border: 1.5px solid var(--cl-open);
+	background: var(--cl-open-soft);
+	transition:
+		transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+		background-color 180ms ease-out;
+}
+
+.cl-cell:hover {
+	transform: translateY(-2px);
+}
+
+.cl-cell--claimed {
+	border-color: var(--cl-held);
+	background: var(--cl-held-soft);
+}
+
+.cl-cell--completed {
+	border-color: var(--cl-done-fill);
+	background: var(--cl-done-fill);
+}
+
+.cl-cell--flash {
+	animation: cl-cell-flash 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cl-cell-flash {
+	0% {
+		transform: scale(1.35);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cl-cell,
+	.cl-cell--flash {
+		transition: none;
+		animation: none;
+	}
+}
+
+.cl-legend {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.375rem 1.25rem;
+	margin-top: 0.75rem;
+	font-size: 0.875rem;
+	color: var(--cl-fg-soft);
+}
+
+.cl-legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.cl-legend-item strong {
+	font-family: var(--font-ibm-plex-mono);
+	font-weight: 600;
+	color: var(--cl-fg);
+}
+
+.cl-swatch {
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 0.1875rem;
+	border: 1.5px solid var(--cl-open);
+	background: var(--cl-open-soft);
+}
+
+.cl-swatch--claimed {
+	border-color: var(--cl-held);
+	background: var(--cl-held-soft);
+}
+
+.cl-swatch--completed {
+	border-color: var(--cl-done-fill);
+	background: var(--cl-done-fill);
+}
+
+/* --------------------------------------------------------------- filters -- */
+
+.cl-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 0.75rem 1rem;
+	padding: 1rem 0;
+	margin-top: 1.5rem;
+	border-top: 1px solid var(--cl-border);
+}
+
+.cl-filters .cl-filter-search {
+	flex: 1 1 14rem;
+}
+
+.cl-filters .cl-filter-toggle {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding-bottom: 0.375rem;
+	font-size: 0.875rem;
+	color: var(--cl-fg-soft);
+}
+
+.cl-input {
+	width: 100%;
+	padding: 0.4375rem 0.75rem;
+	font: inherit;
+	font-size: 0.9375rem;
+	color: var(--cl-fg);
+	background: var(--cl-bg);
+	border: 1px solid var(--cl-border-strong);
+	border-radius: 0.375rem;
+}
+
+.cl-input::placeholder {
+	color: var(--cl-fg-faint);
+}
+
+.cl-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 9rem;
+}
+
+@media (max-width: 640px) {
+	.cl-filters .cl-field {
+		flex: 1 1 40%;
+		min-width: 8rem;
+	}
+
+	.cl-filters .cl-filter-search {
+		flex-basis: 100%;
+	}
+
+	/* The design system's select trigger hard-codes min-width: 17rem, which
+	   cannot fit two-up on a phone. ([class*='trigger'] matches its hashed
+	   CSS-module class.) */
+	.cl-filters .cl-field [class*='trigger'] {
+		min-width: 0;
+		width: 100%;
+	}
+}
+
+.cl-field > label,
+.cl-field .cl-field-label {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--cl-fg-soft);
+}
+
+/* ------------------------------------------------------------------ list -- */
+
+.cl-worklist {
+	list-style: none;
+	margin: 0 0 4rem;
+	padding: 0;
+	border-top: 1px solid var(--cl-border);
+}
+
+.cl-row {
+	border-bottom: 1px solid var(--cl-border);
+}
+
+.cl-row > a {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 1rem;
+	padding: 0.875rem 0.75rem;
+	color: inherit;
+	text-decoration: none;
+	border-radius: 0.375rem;
+	transition: background-color 150ms ease-out;
+}
+
+.cl-row > a:hover {
+	background: var(--cl-surface);
+}
+
+.cl-row-title {
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.cl-row-summary {
+	margin: 0.125rem 0 0;
+	font-size: 0.875rem;
+	color: var(--cl-fg-soft);
+	line-height: 1.5;
+	display: -webkit-box;
+	-webkit-line-clamp: 1;
+	line-clamp: 1;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.cl-row-meta {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+	.cl-row > a {
+		grid-template-columns: auto 1fr;
+		row-gap: 0.375rem;
+	}
+
+	.cl-row-meta {
+		grid-column: 2;
+		justify-content: flex-start;
+	}
+}
+
+.cl-row--muted .cl-row-title,
+.cl-row--muted .cl-row-summary {
+	color: var(--cl-fg-faint);
+}
+
+.cl-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.0625rem 0.5rem;
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.75rem;
+	line-height: 1.6;
+	color: var(--cl-fg-soft);
+	background: var(--cl-surface);
+	border: 1px solid var(--cl-border);
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+.cl-time {
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.8125rem;
+	color: var(--cl-fg-soft);
+	white-space: nowrap;
+}
+
+.cl-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.8125rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.cl-status--available {
+	color: var(--cl-accent-strong);
+}
+
+.cl-status--claimed {
+	color: var(--cl-held);
+}
+
+.cl-status--completed {
+	color: var(--cl-done);
+}
+
+.cl-status--flagged {
+	color: var(--color-danger-600, #de1a1b);
+}
+
+.cl-status--uncompletable {
+	color: var(--cl-fg-faint);
+}
+
+.cl-empty {
+	padding: 3rem 1rem;
+	text-align: center;
+	color: var(--cl-fg-soft);
+}
+
+.cl-empty p {
+	margin: 0 0 1rem;
+}
+
+/* ------------------------------------------------------------ task page -- */
+
+.cl-task-page {
+	padding: 2.5rem 0 4rem;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 18rem;
+	gap: 3rem;
+}
+
+@media (max-width: 896px) {
+	.cl-task-page {
+		grid-template-columns: 1fr;
+		gap: 1.5rem;
+	}
+}
+
+.cl-task-page h1 {
+	margin: 0.25rem 0 0.75rem;
+	font-size: 1.625rem;
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.cl-task-aside {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	align-self: start;
+	position: sticky;
+	top: 1.5rem;
+}
+
+.cl-panel {
+	border: 1px solid var(--cl-border);
+	border-radius: 0.5rem;
+	padding: 1rem 1.25rem;
+	background: var(--cl-bg);
+}
+
+.cl-panel h2 {
+	margin: 0 0 0.625rem;
+	font-size: 0.9375rem;
+	font-weight: 700;
+}
+
+.cl-facts {
+	margin: 0;
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0.375rem 1rem;
+	font-size: 0.875rem;
+}
+
+.cl-facts dt {
+	color: var(--cl-fg-faint);
+}
+
+.cl-facts dd {
+	margin: 0;
+	color: var(--cl-fg);
+}
+
+/* Markdown body */
+.cl-prose {
+	max-width: 70ch;
+	line-height: 1.7;
+}
+
+.cl-prose h2 {
+	margin: 2rem 0 0.625rem;
+	font-size: 1.1875rem;
+}
+
+.cl-prose h3 {
+	margin: 1.75rem 0 0.5rem;
+	font-size: 1.0625rem;
+}
+
+.cl-prose p,
+.cl-prose ul,
+.cl-prose ol {
+	margin: 0 0 1rem;
+}
+
+.cl-prose ul,
+.cl-prose ol {
+	padding-left: 1.5rem;
+}
+
+.cl-prose li + li {
+	margin-top: 0.375rem;
+}
+
+/* Bold lead-ins ("**Verify**", "**Files**") act as the content's headings;
+   give them heading-like breathing room. */
+.cl-prose p > strong:only-child {
+	display: inline-block;
+	margin-top: 0.5rem;
+}
+
+.cl-prose blockquote {
+	margin: 0 0 1rem;
+	padding: 0.125rem 0 0.125rem 1rem;
+	border-left: 2px solid var(--cl-border-strong);
+	color: var(--cl-fg-soft);
+}
+
+.cl-prose blockquote p:last-child {
+	margin-bottom: 0;
+}
+
+.cl-prose :not(pre) > code {
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.875em;
+	background: var(--cl-surface);
+	border: 1px solid var(--cl-border);
+	border-radius: 0.25rem;
+	padding: 0.0625rem 0.3125rem;
+}
+
+/* Block rhythm for the design system's code boxes (and code tabs) wherever
+   they sit in a prose flow. Nested boxes (inside tabs) stay flush. */
+.cl-codebox {
+	margin: 1rem 0 1.25rem;
+}
+
+.cl-codebox .cl-codebox {
+	margin: 0;
+}
+
+/* Fenced code renders in the design system's CodeBox (its own classes); this
+   box styling is only the fallback for a bare, unhighlighted pre. */
+.cl-prose pre:not([class]) {
+	background: var(--cl-surface);
+	border: 1px solid var(--cl-border);
+	border-radius: 0.5rem;
+	padding: 0.875rem 1rem;
+	overflow-x: auto;
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.8125rem;
+}
+
+/* ------------------------------------------------------------- me / forms -- */
+
+.cl-narrow {
+	max-width: 46rem;
+	padding-top: 2.5rem;
+	padding-bottom: 4rem;
+}
+
+.cl-narrow > h1 {
+	margin: 0 0 1.25rem;
+	font-size: 1.75rem;
+	letter-spacing: -0.01em;
+}
+
+.cl-form-row {
+	display: flex;
+	gap: 0.75rem;
+	align-items: stretch;
+	flex-wrap: wrap;
+}
+
+.cl-form-row .cl-input {
+	flex: 1 1 16rem;
+	width: auto;
+}
+
+.cl-actions {
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: 1rem;
+}
+
+.cl-hint {
+	font-size: 0.8125rem;
+	color: var(--cl-fg-faint);
+	margin: 0.375rem 0 0;
+}
+
+.cl-error-text {
+	font-size: 0.875rem;
+	color: var(--color-danger-600, #de1a1b);
+	margin: 0.375rem 0 0;
+}
+
+.cl-history {
+	list-style: none;
+	margin: 0.75rem 0 0;
+	padding: 0;
+	border-top: 1px solid var(--cl-border);
+}
+
+.cl-history li {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	padding: 0.625rem 0;
+	border-bottom: 1px solid var(--cl-border);
+	font-size: 0.9375rem;
+}
+
+.cl-history .cl-time {
+	margin-left: auto;
+}
+
+/* ----------------------------------------------------------------- admin -- */
+
+.cl-admin {
+	padding-top: 2rem;
+	padding-bottom: 4rem;
+}
+
+.cl-admin > h1 {
+	margin: 0 0 1rem;
+	font-size: 1.75rem;
+	letter-spacing: -0.01em;
+}
+
+/* The library Tabs root is a grid; its panels default to min-width:auto, so a
+   wide table inflates the panel past the viewport and the whole page scrolls
+   sideways. Zeroed, the panel stays at container width and .cl-table-wrap
+   becomes the scroll container it was built to be. */
+.cl-admin [role='tabpanel'] {
+	min-width: 0;
+}
+
+.cl-table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--cl-border);
+	border-radius: 0.5rem;
+}
+
+.cl-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+	min-width: 56rem;
+}
+
+.cl-table th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--cl-fg-soft);
+	padding: 0.625rem 0.875rem;
+	border-bottom: 1px solid var(--cl-border);
+	background: var(--cl-surface);
+	white-space: nowrap;
+}
+
+.cl-table td {
+	padding: 0.5rem 0.875rem;
+	border-bottom: 1px solid var(--cl-border);
+	vertical-align: middle;
+}
+
+.cl-table tr:last-child td {
+	border-bottom: none;
+}
+
+.cl-table .cl-table-actions {
+	display: flex;
+	gap: 0.375rem;
+	justify-content: flex-end;
+}
+
+/* Row actions ("Mark done", "Assign…") stay on one line; the wrap scrolls. */
+.cl-table .cl-btn-quiet {
+	white-space: nowrap;
+}
+
+.cl-btn-quiet {
+	font: inherit;
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--cl-accent);
+	background: none;
+	border: none;
+	padding: 0.25rem 0.5rem;
+	border-radius: 0.25rem;
+	cursor: pointer;
+}
+
+.cl-btn-quiet:hover {
+	background: var(--cl-surface);
+}
+
+.cl-btn-quiet--danger {
+	color: var(--color-danger-600, #de1a1b);
+}
+
+.cl-btn-quiet:disabled {
+	color: var(--cl-fg-faint);
+	cursor: not-allowed;
+}
+
+.cl-admin-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.cl-form-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+	gap: 0.75rem 1rem;
+}
+
+.cl-form-grid .cl-field--wide {
+	grid-column: 1 / -1;
+}
+
+textarea.cl-input {
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	resize: vertical;
+}
+
+/* ----------------------------------------------------------------- setup -- */
+
+.cl-setup {
+	max-width: 46rem;
+	padding-top: 2.5rem;
+	padding-bottom: 4rem;
+}
+
+.cl-setup h1 {
+	margin: 0 0 0.5rem;
+	font-size: 1.75rem;
+	letter-spacing: -0.01em;
+}
+
+.cl-setup .cl-lede {
+	color: var(--cl-fg-soft);
+	margin: 0 0 2rem;
+	max-width: 62ch;
+}
+
+.cl-setup section {
+	margin-top: 3rem;
+}
+
+.cl-setup h2 {
+	margin: 0 0 1rem;
+	padding-top: 2rem;
+	border-top: 1px solid var(--cl-border);
+	font-size: 1.25rem;
+	letter-spacing: -0.01em;
+}
+
+.cl-setup section > p,
+.cl-setup section > ul {
+	color: var(--cl-fg-soft);
+	margin: 0 0 1rem;
+}
+
+.cl-setup section > ul li + li {
+	margin-top: 0.5rem;
+}
+
+/* Emphasis via the same 1.5px accent outline the step counters and pool
+   cells use, not a one-sided tab. */
+.cl-callout {
+	background: var(--cl-surface);
+	border: 1.5px solid var(--cl-accent);
+	border-radius: 0.5rem;
+	padding: 0.875rem 1.125rem;
+	margin: 0 0 1.25rem;
+}
+
+.cl-callout p {
+	margin: 0;
+	color: var(--cl-fg);
+}
+
+.cl-note {
+	font-size: 0.9375rem;
+	border-left: 2px solid var(--cl-border);
+	padding-left: 0.875rem;
+}
+
+.cl-setup details {
+	border: 1px solid var(--cl-border);
+	border-radius: 0.5rem;
+	padding: 0.75rem 1.125rem;
+	margin: 0 0 0.75rem;
+}
+
+.cl-setup details[open] {
+	padding-bottom: 1rem;
+}
+
+.cl-setup summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--cl-fg);
+}
+
+.cl-setup details > summary ~ * {
+	margin-top: 0.75rem;
+	margin-bottom: 0;
+}
+
+.cl-setup details p,
+.cl-setup details ul {
+	color: var(--cl-fg-soft);
+}
+
+.cl-steps {
+	counter-reset: step;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.cl-steps > li {
+	counter-increment: step;
+	position: relative;
+	padding: 0 0 1.75rem 3.25rem;
+	border-left: 1px solid var(--cl-border);
+	margin-left: 1.125rem;
+}
+
+.cl-steps > li:last-child {
+	border-left-color: transparent;
+	padding-bottom: 0;
+}
+
+.cl-steps > li::before {
+	content: counter(step);
+	position: absolute;
+	left: -1.1875rem;
+	top: -0.125rem;
+	width: 2.25rem;
+	height: 2.25rem;
+	display: grid;
+	place-items: center;
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: var(--cl-accent-strong);
+	background: var(--cl-bg);
+	border: 1.5px solid var(--cl-accent);
+	border-radius: 50%;
+}
+
+.cl-steps h3 {
+	margin: 0 0 0.375rem;
+	font-size: 1.125rem;
+}
+
+.cl-steps p,
+.cl-steps ul {
+	margin: 0 0 0.625rem;
+	color: var(--cl-fg-soft);
+}
+
+.cl-steps code {
+	font-family: var(--font-ibm-plex-mono);
+	font-size: 0.875em;
+}
+
+/* The theme guide, collapsed on the my-task view to keep the submit form in
+   reach. */
+.cl-mytask-guide {
+	border: 1px solid var(--cl-border);
+	border-radius: 0.5rem;
+	padding: 0.625rem 1rem;
+	margin: 0 0 1.25rem;
+}
+
+.cl-mytask-guide > summary {
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 0.9375rem;
+}
+
+/* --------------------------------------------------------- harper promo -- */
+
+.cl-harper-promo {
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 2rem 0.75rem 0.875rem;
+	background: var(--cl-bg);
+	border: 1px solid var(--cl-border-strong);
+	border-radius: 0.5rem;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+	font-size: 0.875rem;
+}
+
+.cl-harper-promo-title {
+	font-weight: 600;
+}
+
+.cl-harper-promo-close {
+	position: absolute;
+	top: 0.25rem;
+	right: 0.375rem;
+	border: 0;
+	background: none;
+	padding: 0.125rem;
+	font-size: 1rem;
+	line-height: 1;
+	color: var(--cl-fg-faint);
+	cursor: pointer;
+}
+
+.cl-harper-promo-close:hover {
+	color: var(--cl-fg);
+}
+
+/* --------------------------------------------------------------- footer -- */
+
+.cl-footer-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1.75rem;
+}
+
+/* Library-intrusion exception (like the Select min-width fix): the library
+   Footer drops its horizontal padding below 640px, leaving the links flush
+   against the screen edge. Restore the page gutter on the semantic element. */
+@media (max-width: 640px) {
+	body > footer {
+		padding-inline: 1.5rem;
+	}
+}
+
+.cl-signin-cta {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.cl-avatar {
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 50%;
+	border: 1px solid var(--cl-border);
+}
+
+.cl-page-head .cl-glow {
+	position: absolute;
+	inset: -4rem 0 auto;
+	height: 16rem;
+	pointer-events: none;
+	z-index: -1;
+	overflow: hidden;
+}
+
+/* Inline assign form inside the admin task table. */
+.cl-assign-form {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+}
+
+.cl-assign-form .cl-input {
+	width: 10rem;
+	padding: 0.25rem 0.5rem;
+	font-size: 0.8125rem;
+}
+
+/* The task editor expands as a full-width row directly under the row being
+   edited; the recessed tint marks it as belonging to that row. */
+.cl-editor-row td {
+	background: var(--cl-surface);
+}
+
+.cl-editor-row .cl-panel {
+	background: var(--cl-bg);
+}
+
+/* Status filter chips above the admin task table. Counts stay mono
+   (mono-means-data); the pressed chip recesses like a hover that stuck. */
+.cl-status-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.375rem;
+	margin: 0 0 0.5rem;
+}
+
+.cl-status-chips .cl-btn-quiet strong {
+	font-family: var(--font-ibm-plex-mono);
+	font-weight: 600;
+}
+
+.cl-status-chips .cl-btn-quiet[aria-pressed='true'] {
+	background: var(--cl-surface);
+	color: var(--cl-fg);
+}
+
+/* Danger-zone rows in the admin Event tab. */
+.cl-danger-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+	padding: 0.625rem 0;
+	border-top: 1px solid var(--cl-border);
+}
+
+/* ------------------------------------------------------------ alert boxes -- */
+/* The design system's AlertBox is built for one-line banners; ours carry
+   whole sentences. Top-align the title chip and let the copy wrap below it
+   on narrow screens instead of squeezing beside a full-height chip.
+   ([class*='alertBox'] matches the hashed CSS-module class.) */
+[class*='alertBox'] {
+	align-items: flex-start;
+	flex-wrap: wrap;
+}
+
+/* --------------------------------------------------- syntax highlighting -- */
+/* Code blocks are highlighted with @node-core/rehype-shiki (the Node.js
+   website's own Shiki setup). Colors ride inline on the spans; the package's
+   index.css (imported in entry-client.jsx) switches to the dark palette under
+   [data-theme='dark']. */
+
+/* ---------------------------------------------- attendee AI-usage notice -- */
+.cl-announce {
+	position: relative;
+	margin: 1.5rem 0 0.5rem;
+}
+/* Room for the minimize control in the box's top-right corner. */
+.cl-announce > div {
+	padding-right: 3rem;
+}
+.cl-announce-toggle {
+	position: absolute;
+	top: 0.7rem;
+	right: 0.7rem;
+	width: 1.75rem;
+	height: 1.75rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.25rem;
+	line-height: 1;
+	border: 1px solid var(--cl-border-strong);
+	border-radius: 6px;
+	background: var(--cl-bg);
+	color: var(--cl-fg-soft);
+	cursor: pointer;
+}
+.cl-announce-toggle:hover {
+	color: var(--cl-fg);
+	border-color: var(--cl-fg-faint);
+}
