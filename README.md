@@ -66,6 +66,10 @@ Both run in CI on every push and pull request, alongside `vite build`.
 
 Useful env vars for local dev (in `.env`):
 
+- `LOCAL_SEED=fixtures` — loads the synthetic fixture set in [`fixtures/`](fixtures/README.md):
+  tasks in every state (claimed, completed, flagged…), guides, users (an admin, attendees, a
+  banned and a timed-out user), and settings. Idempotent across restarts, and runs on local
+  instances only.
 - `LOCAL_DATA_FILE=data/contribution-tasks.json` — loads a JSON task file (the curated
   event list, or the bulk-import shape) as the starting pool. Idempotent across restarts;
   entries may pin their own `id`.

@@ -1,0 +1,23 @@
+{
+  "users": [
+    { "id": "fx_ada", "name": "Ada (fixture admin)", "avatarUrl": null, "isAdmin": true },
+    { "id": "fx_alice", "name": "Alice (fixture attendee)", "avatarUrl": null, "isAdmin": false },
+    { "id": "fx_bob", "name": "Bob (fixture attendee)", "avatarUrl": null, "isAdmin": false },
+    {
+      "id": "fx_carol",
+      "name": "Carol (fixture, banned)",
+      "avatarUrl": null,
+      "isAdmin": false,
+      "bannedAt": 1767225600000,
+      "banReason": "Fixture: opened spam pull requests"
+    },
+    {
+      "id": "fx_dave",
+      "name": "Dave (fixture, timed out)",
+      "avatarUrl": null,
+      "isAdmin": false,
+      "timeoutUntil": 4102444800000
+    },
+    { "id": "fx_erin", "name": "Erin (fixture attendee)", "avatarUrl": null, "isAdmin": false }
+  ]
+}
