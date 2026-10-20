@@ -72,8 +72,16 @@ jobs:
             printf '%s=%s\n' "$key" "${!key}" >> .env
           done
 
+      # The deploy restarts the workers as a rolling restart job; keep its id so
+      # the check waits for the restart to finish. The log goes to the runner's
+      # temp dir: harper deploy packages the working directory.
       - name: Deploy
-        run: npm run deploy
+        id: deploy
+        run: |
+          set -o pipefail
+          npm run deploy 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+          job=$(grep -m1 -oE 'restartJobId: "?[0-9a-f-]{36}' "$RUNNER_TEMP/deploy.log" | grep -oE '[0-9a-f-]{36}' || true)
+          echo "restart-job=$job" >> "$GITHUB_OUTPUT"
 
       - name: Check the site (restarts workers if the render bundle is missing)
-        run: scripts/check-site.sh "${{ vars.SITE_URL }}"
+        run: scripts/check-site.sh "${{ vars.SITE_URL }}" "${{ steps.deploy.outputs.restart-job }}"

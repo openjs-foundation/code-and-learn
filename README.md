@@ -119,7 +119,7 @@ GitHub OAuth app, because the callback URL is per domain: `<SITE_URL>/oauth/gith
 
 ```bash
 harper login <Application URL>   # once; from your cluster's Config → Overview page
-npm run deploy                   # harper deploy project=code-and-learn restart=true install_allow_scripts=true
+npm run deploy                   # harper deploy project=code-and-learn restart=rolling install_allow_scripts=true
 ```
 
 `harper deploy` ships the working directory, **including gitignored files such as `.env`**.
@@ -129,9 +129,10 @@ Make sure `.env` holds the target environment's settings and nothing local-only
 No build step before deploying: `@harperfast/vite` builds on the node at startup and
 rebuilds when watched source changes. If a deploy leaves the site failing with
 `ENOENT … node_modules/.harper-vite-ssr/entry-server.js` (the server-side render bundle went
-missing), restart the HTTP workers on every node; the CI deploy does this automatically
-(`scripts/check-site.sh`). Note that `harper restart` restarts a _local_ instance, not the
-cluster.
+missing), restart the HTTP workers on every node. The CI deploy does this automatically:
+`scripts/check-site.sh` waits for the deploy's rolling restart job to finish, then restarts
+the workers if the site still isn't healthy. Note that `harper restart` restarts a _local_
+instance, not the cluster.
 
 ```bash
 npx harper restart_service service=http_workers replicated=true

@@ -9,7 +9,7 @@
     "dev": "harper dev .",
     "build": "vite build",
     "start": "harper run .",
-    "deploy": "harper deploy project=code-and-learn restart=true install_allow_scripts=true",
+    "deploy": "harper deploy project=code-and-learn restart=rolling install_allow_scripts=true",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
