@@ -1,0 +1,14 @@
+{
+  "settings": [
+    {
+      "id": "announcement",
+      "value": {
+        "enabled": true,
+        "level": "info",
+        "title": "Fixture data",
+        "body": "You're looking at synthetic fixtures, not a real event."
+      }
+    },
+    { "id": "claims", "value": { "paused": false, "hidden": false, "message": "" } }
+  ]
+}

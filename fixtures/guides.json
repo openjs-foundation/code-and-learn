@@ -1,0 +1,22 @@
+{
+  "guides": [
+    {
+      "id": "example-refactor",
+      "title": "Refactoring a fixture file",
+      "summary": "How to make a small, behavior-preserving change to one file.",
+      "body": "Each task in this theme names one file. Make the change it describes and nothing else.\n\n1. Read the file and the task's notes.\n2. Make the change.\n3. Run the file's check:\n\n```bash\nnpm test -- path/to/example-file.test.js\n```\n\nKeep the change small; reviewers merge small diffs faster."
+    },
+    {
+      "id": "example-tests",
+      "title": "Improving a fixture test",
+      "summary": "How to tighten or split a test without changing what it checks.",
+      "body": "Tests in this theme check the right thing but report failures poorly, or bundle too much.\n\n- Preserve what each test asserts.\n- Prefer one scenario per test.\n\n```js\nimport { test } from 'node:test';\nimport assert from 'node:assert';\n\ntest('example scenario', () => {\n  assert.strictEqual(1 + 1, 2);\n});\n```"
+    },
+    {
+      "id": "example-docs",
+      "title": "Fixing a fixture doc page",
+      "summary": "How to correct a documentation page and check the rendered result.",
+      "body": "Doc tasks point at one page and list what is wrong with it.\n\n1. Fix each listed item.\n2. Render the page locally and check it reads correctly.\n\nDocs changes use the `doc:` commit prefix."
+    }
+  ]
+}
