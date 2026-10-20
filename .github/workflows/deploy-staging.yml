@@ -1,0 +1,33 @@
+# Manually deploy any branch, tag, commit, or pull request to staging. Only
+# people with write access can run it. A pull request from a fork runs on the
+# staging instance with staging's secrets, so review it before deploying.
+name: Deploy to staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit SHA to deploy
+        type: string
+        default: main
+      pr:
+        description: Pull request number to deploy instead (overrides ref)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      ref: ${{ inputs.pr && format('refs/pull/{0}/head', inputs.pr) || inputs.ref }}
+
+  deploy-staging:
+    needs: checks
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      ref: ${{ inputs.pr && format('refs/pull/{0}/head', inputs.pr) || inputs.ref }}
+    secrets: inherit

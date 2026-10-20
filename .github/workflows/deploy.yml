@@ -1,0 +1,79 @@
+# Deploys a ref to one Harper Fabric environment (production or staging).
+#
+# Each GitHub environment holds:
+#   secrets   HARPER_CLI_USERNAME, HARPER_CLI_PASSWORD,
+#             OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET
+#   variables SITE_URL, HARPER_CLI_TARGET (the cluster's operations URL),
+#             OAUTH_REDIRECT_URI, ADMIN_GITHUB_LOGINS (optional)
+# The last three may be secrets instead, so a whole .env can be loaded with
+# `gh secret set --env <name> -f .env`.
+#
+# The app reads its OAuth settings from .env (config.yaml loadEnv), and
+# `harper deploy` ships the working directory, so the job writes .env from
+# the environment's settings right before deploying.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment to deploy to
+        type: string
+        required: true
+      ref:
+        description: Git ref to deploy
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.SITE_URL }}
+    # One deploy per environment at a time; a newer one waits rather than
+    # cancelling a deploy that is already running.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      HARPER_CLI_TARGET: ${{ vars.HARPER_CLI_TARGET || secrets.HARPER_CLI_TARGET }}
+      HARPER_CLI_USERNAME: ${{ secrets.HARPER_CLI_USERNAME }}
+      HARPER_CLI_PASSWORD: ${{ secrets.HARPER_CLI_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Write the runtime .env
+        env:
+          OAUTH_GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ vars.OAUTH_REDIRECT_URI || secrets.OAUTH_REDIRECT_URI }}
+          ADMIN_GITHUB_LOGINS: ${{ vars.ADMIN_GITHUB_LOGINS || secrets.ADMIN_GITHUB_LOGINS }}
+        run: |
+          for key in HARPER_CLI_TARGET HARPER_CLI_USERNAME HARPER_CLI_PASSWORD \
+            OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET OAUTH_REDIRECT_URI; do
+            if [ -z "${!key}" ]; then
+              echo "::error::$key is not set for the ${{ inputs.environment }} environment"
+              exit 1
+            fi
+          done
+          : > .env
+          for key in OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET OAUTH_REDIRECT_URI ADMIN_GITHUB_LOGINS; do
+            printf '%s=%s\n' "$key" "${!key}" >> .env
+          done
+
+      - name: Deploy
+        run: npm run deploy
+
+      - name: Check the site (restarts workers if the render bundle is missing)
+        run: scripts/check-site.sh "${{ vars.SITE_URL }}"

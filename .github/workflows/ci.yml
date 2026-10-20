@@ -1,0 +1,24 @@
+# Every push and pull request runs the checks; a push to main that passes
+# deploys to production.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  deploy-production:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      ref: ${{ github.sha }}
+    secrets: inherit

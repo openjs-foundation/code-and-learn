@@ -89,31 +89,53 @@ the app in development and production alike.
 
 ## Deploying to Harper Fabric
 
-**CI/CD (the normal path):** every push and pull request runs lint, format check, and
-`vite build` (`.github/workflows/ci.yml`); a push to `main` that passes then deploys to
-Harper Fabric with `harper deploy`. Configure these secrets on the repo's
-`production` environment (Settings → Environments):
+**Production (automatic):** every push and pull request runs lint, format check, and
+`vite build` (`.github/workflows/ci.yml`). A push to `main` that passes deploys to the
+`production` environment (`.github/workflows/deploy.yml`), then waits for the site to come
+back and restarts the HTTP workers if it doesn't (see below).
 
-- `HARPER_TARGET` — the cluster's Application URL, from its **Config → Overview** page
-- `HARPER_CLI_USERNAME` / `HARPER_CLI_PASSWORD` — cluster credentials the CLI
-  authenticates with (read by `harper deploy` as `HARPER_CLI_*` env vars)
+**Staging (manual):** Actions → **Deploy to staging** → **Run workflow**, with a branch, tag,
+or commit (`ref`) or a pull request number (`pr`). It runs the same checks first. A pull
+request from a fork runs on staging with staging's secrets, so review it before deploying.
+
+Each GitHub environment (`production`, `staging`; Settings → Environments) needs:
+
+| Kind               | Name                                                   | Value                                                         |
+| ------------------ | ------------------------------------------------------ | ------------------------------------------------------------- |
+| secret             | `HARPER_CLI_USERNAME`, `HARPER_CLI_PASSWORD`           | cluster credentials `harper deploy` authenticates with        |
+| secret             | `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET` | that environment's GitHub OAuth app                           |
+| variable or secret | `HARPER_CLI_TARGET`                                    | the cluster's operations URL, e.g. `https://<host>:9925/`     |
+| variable           | `SITE_URL`                                             | the public origin, e.g. `https://<host>`                      |
+| variable or secret | `OAUTH_REDIRECT_URI`                                   | `<SITE_URL>/oauth/callback` (the plugin appends the provider) |
+| variable or secret | `ADMIN_GITHUB_LOGINS`                                  | optional; seed admins, comma-separated                        |
+
+The app reads its OAuth settings from `.env` (`config.yaml` → `loadEnv`) and `harper deploy`
+ships the working directory, so the deploy job writes `.env` from these settings right before
+deploying. To load an existing `.env` in one go, run `gh secret set --env <name> -f .env`;
+the settings marked "variable or secret" are read from either. Each environment needs its own
+GitHub OAuth app, because the callback URL is per domain: `<SITE_URL>/oauth/github/callback`.
 
 **Manually, from a machine:**
 
 ```bash
 harper login <Application URL>   # once; from your cluster's Config → Overview page
-npm run deploy                   # harper deploy project=code-and-learn restart=true
+npm run deploy                   # harper deploy project=code-and-learn restart=true install_allow_scripts=true
 ```
 
+`harper deploy` ships the working directory, **including gitignored files such as `.env`**.
+Make sure `.env` holds the target environment's settings and nothing local-only
+(`LOCAL_DEV_LOGIN`, `LOCAL_DATA_FILE`, localhost OAuth settings).
+
 No build step before deploying: `@harperfast/vite` builds on the node at startup and
-rebuilds when watched source changes.
+rebuilds when watched source changes. If a deploy leaves the site failing with
+`ENOENT … node_modules/.harper-vite-ssr/entry-server.js` (the server-side render bundle went
+missing), restart the HTTP workers on every node; the CI deploy does this automatically
+(`scripts/check-site.sh`). Note that `harper restart` restarts a _local_ instance, not the
+cluster.
 
-Set these runtime environment variables on the cluster (Fabric → application settings):
-
-- `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET`
-- `OAUTH_REDIRECT_URI=https://<your-domain>/oauth/callback` — required in production; the
-  plugin appends the provider name
-- `ADMIN_GITHUB_LOGINS=login1,login2` — seed admins; they can promote others from `/admin`
+```bash
+npx harper restart_service service=http_workers replicated=true
+```
 
 Sessions must be enabled on the instance (`authentication.enableSessions: true` in the
 instance's `harper-config.yaml`) for cookie-based OAuth sessions.
