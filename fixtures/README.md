@@ -23,5 +23,8 @@ state intact, and existing records are never overwritten, so restarts keep your 
 only runs on a local instance: if `OAUTH_REDIRECT_URI` points anywhere but localhost, it is
 skipped with an error in the log.
 
+To act as one of the users, also set `LOCAL_DEV_SIGN_IN=true` and pick a user from the **Dev**
+menu in the nav.
+
 `tasks.json` and `guides.json` also paste into **Admin → Bulk import** (guides first), for example
 on staging. Imported tasks start open, and users and settings aren't imported that way.
