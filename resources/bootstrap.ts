@@ -29,7 +29,6 @@ import {
 	type TaskRecord,
 	type TaskStatus,
 } from './shared/harper.ts';
-import { LOCAL_DEV_LOGIN, LOCAL_DEV_USER } from './shared/auth.ts';
 import { isLocalInstance } from './shared/local.ts';
 import { validateTaskInput } from './shared/tasks.ts';
 import { validateGuideInput } from './Guides.ts';
@@ -245,13 +244,10 @@ if (process.env.LOCAL_SEED) {
 	})().catch((error) => console.error('LOCAL_SEED load failed:', error));
 }
 
-if (LOCAL_DEV_LOGIN) {
-	(async () => {
-		if (!(await User.get(LOCAL_DEV_USER, SYSTEM))) {
-			await User.put(
-				record({ id: LOCAL_DEV_USER, name: 'Local Dev', avatarUrl: null, isAdmin: true }),
-				SYSTEM,
-			);
-		}
-	})().catch((error) => console.error('LOCAL_DEV_LOGIN bootstrap failed:', error));
+// LOCAL_DEV_LOGIN (every request as one synthetic admin) was replaced by
+// dev sign-in; say so rather than silently ignoring an old .env.
+if (process.env.LOCAL_DEV_LOGIN) {
+	console.warn(
+		'LOCAL_DEV_LOGIN no longer does anything: set LOCAL_DEV_SIGN_IN=true and sign in from the Dev menu in the nav (see README).',
+	);
 }
