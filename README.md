@@ -75,9 +75,12 @@ Useful env vars for local dev (in `.env`):
   entries may pin their own `id`.
 - `LOCAL_GUIDES_FILE=data/contribution-guides.json` — loads the per-theme how-to guides
   each task references by its `theme`. Also idempotent.
-- `LOCAL_DEV_LOGIN=true` — bypasses GitHub auth entirely; every request runs as a synthetic
-  admin user (`local-dev`), so the claim flow and `/admin` are testable without OAuth
-  credentials. **Never set this in production.**
+- `LOCAL_DEV_SIGN_IN=true` — sign in as a test user without GitHub: pick one from the **Dev**
+  menu in the nav, or from a script `POST /api/dev/login` with `{"as": "fx_alice"}`. Works with `LOCAL_SEED=fixtures`
+  (an admin, attendees, a banned and a timed-out user); any other login with an underscore
+  is created as a plain attendee. Sign out as usual. Local instances only, and only for
+  logins with an underscore, which GitHub doesn't allow, so it can never act as a real
+  account.
 - `ADMIN_GITHUB_LOGINS=your-login` — you become an admin on your next real sign-in.
 
 ### GitHub OAuth app
@@ -128,7 +131,7 @@ npm run deploy                   # harper deploy project=code-and-learn restart=
 
 `harper deploy` ships the working directory, **including gitignored files such as `.env`**.
 Make sure `.env` holds the target environment's settings and nothing local-only
-(`LOCAL_DEV_LOGIN`, `LOCAL_DATA_FILE`, localhost OAuth settings).
+(`LOCAL_DEV_SIGN_IN`, `LOCAL_SEED`, `LOCAL_DATA_FILE`, localhost OAuth settings).
 
 No build step before deploying: `@harperfast/vite` builds on the node at startup and
 rebuilds when watched source changes. If a deploy leaves the site failing with

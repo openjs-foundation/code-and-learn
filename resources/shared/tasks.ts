@@ -1,6 +1,6 @@
 /**
  * Task validation + import normalization shared by the admin endpoints and
- * the local-dev bootstrap, plus the pool lock every claim-state transition
+ * the local-data bootstrap, plus the pool lock every claim-state transition
  * runs under.
  */
 import { transaction } from 'harper';
