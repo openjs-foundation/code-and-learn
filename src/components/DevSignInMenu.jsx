@@ -6,6 +6,7 @@ import { getJson, postJson } from '../lib/api.js';
 // reports dev sign-in is on.
 export default function DevSignInMenu({ currentLogin }) {
 	const [users, setUsers] = useState(null);
+	const [error, setError] = useState(null);
 
 	useEffect(() => {
 		getJson('/api/dev/users')
@@ -15,10 +16,17 @@ export default function DevSignInMenu({ currentLogin }) {
 
 	if (!users?.length) return null;
 
+	// On failure the select snaps back to the current user (it's controlled)
+	// and the server's hint shows next to it.
 	async function signInAs(login) {
 		if (!login || login === currentLogin) return;
-		await postJson('/api/dev/login', { as: login });
-		location.reload();
+		setError(null);
+		try {
+			await postJson('/api/dev/login', { as: login });
+			location.reload();
+		} catch (failure) {
+			setError(failure.body?.hint ?? failure.message ?? 'Dev sign-in failed.');
+		}
 	}
 
 	const isDevUser = users.some((user) => user.login === currentLogin);
@@ -38,6 +46,11 @@ export default function DevSignInMenu({ currentLogin }) {
 					</option>
 				))}
 			</select>
+			{error ? (
+				<span className="cl-dev-signin-error" role="alert">
+					{error}
+				</span>
+			) : null}
 		</label>
 	);
 }

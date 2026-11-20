@@ -1,18 +1,17 @@
 /**
  * The signed-in attendee: identity, active task, and completed history.
  * GET /api/me — { user: null, ... } for anonymous visitors, never an error.
- * Adds `devSignIn: true` when local dev sign-in is on, so the nav can offer
- * it without probing for the dev routes on every page.
+ * Adds `devSignIn: true` when local dev sign-in is on and this request may use
+ * it, so the nav can offer it without probing for the dev routes on every page.
  */
 import { currentUser, restrictionOf, OpenResource } from './shared/auth.ts';
 import { findActiveTask } from './shared/tasks.ts';
 import { query, SYSTEM, Task, type TaskRecord } from './shared/harper.ts';
-import { DEV_SIGN_IN } from './dev/DevSignIn.ts';
-
-const devFlag = DEV_SIGN_IN ? { devSignIn: true } : {};
+import { devSignInAllowed } from './dev/DevSignIn.ts';
 
 export class Me extends OpenResource {
 	static async get() {
+		const devFlag = devSignInAllowed() ? { devSignIn: true } : {};
 		const user = await currentUser();
 		if (!user) return { user: null, activeTask: null, completed: [], ...devFlag };
 

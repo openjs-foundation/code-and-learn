@@ -1025,6 +1025,11 @@ textarea.cl-input {
 	padding: 0.2rem 0.4rem;
 }
 
+.cl-dev-signin-error {
+	color: var(--cl-held);
+	max-width: 16rem;
+}
+
 .cl-avatar {
 	width: 1.75rem;
 	height: 1.75rem;
