@@ -25,6 +25,7 @@ import { SetRole } from './admin/SetRole.ts';
 import { Dashboard } from './admin/Dashboard.ts';
 import { ReviewFlag } from './admin/ReviewFlag.ts';
 import { ResetPool } from './admin/ResetPool.ts';
+import { DEV_SIGN_IN, DevSignIn, DevUsers } from './dev/DevSignIn.ts';
 
 export const api = {
 	tasks: AvailableTasks,
@@ -49,4 +50,6 @@ export const api = {
 		participants: Dashboard,
 		reset: ResetPool,
 	},
+	// Local-only test sign-in (dev/DevSignIn.ts); not registered unless enabled.
+	...(DEV_SIGN_IN ? { dev: { login: DevSignIn, users: DevUsers } } : {}),
 };

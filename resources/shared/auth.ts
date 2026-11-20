@@ -14,16 +14,11 @@ export function adminAllowlist(): string[] {
 		.filter(Boolean);
 }
 
-// LOCAL_DEV_LOGIN=true bypasses GitHub OAuth entirely: every request runs as a
-// synthetic admin user. Local development only — never set it in production.
-export const LOCAL_DEV_LOGIN = process.env.LOCAL_DEV_LOGIN === 'true';
-export const LOCAL_DEV_USER = 'local-dev';
-
 export function sessionLogin(): string | null {
 	const context = getContext() as { session?: { user?: unknown } } | undefined;
 	const login = context?.session?.user;
 	if (typeof login === 'string' && login) return login.toLowerCase();
-	return LOCAL_DEV_LOGIN ? LOCAL_DEV_USER : null;
+	return null;
 }
 
 export async function currentUser(): Promise<UserRecord | null> {

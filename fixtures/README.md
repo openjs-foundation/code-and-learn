@@ -24,5 +24,8 @@ only runs on a local instance: if `OAUTH_REDIRECT_URI` or `HARPER_CLI_TARGET` po
 localhost, it is skipped with an error in the log. Entries that break the app's rules (an unknown
 status, a claim with no holder, two claims for one user) are skipped with a warning.
 
+To act as one of the users, also set `LOCAL_DEV_SIGN_IN=true` and pick a user from the **Dev**
+menu in the nav.
+
 `tasks.json` and `guides.json` also paste into **Admin → Bulk import** (guides first), for example
 on staging. Imported tasks start open, and users and settings aren't imported that way.

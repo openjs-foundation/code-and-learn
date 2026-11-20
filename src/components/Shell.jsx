@@ -6,10 +6,12 @@ import BaseButton from '@node-core/ui-components/Common/BaseButton';
 import GitHub from '@node-core/ui-components/Icons/Social/GitHub';
 import { getJson, signInHref, signOut } from '../lib/api.js';
 import { storedTheme, setTheme, watchSystemTheme } from '../lib/theme.js';
+import DevSignInMenu from './DevSignInMenu.jsx';
 
 export default function Shell({ pathname }) {
 	const [themePreference, setThemePreference] = useState('system');
 	const [me, setMe] = useState(undefined); // undefined = loading, null = signed out
+	const [devSignIn, setDevSignIn] = useState(false);
 
 	useEffect(() => {
 		setThemePreference(storedTheme());
@@ -18,7 +20,10 @@ export default function Shell({ pathname }) {
 
 	useEffect(() => {
 		getJson('/api/me')
-			.then((data) => setMe(data?.user ?? null))
+			.then((data) => {
+				setMe(data?.user ?? null);
+				setDevSignIn(Boolean(data?.devSignIn));
+			})
 			.catch(() => setMe(null));
 	}, []);
 
@@ -45,6 +50,7 @@ export default function Shell({ pathname }) {
 				}}
 				ariaLabel="Switch color theme"
 			/>
+			{devSignIn ? <DevSignInMenu currentLogin={me?.login} /> : null}
 			{me === undefined ? null : me === null ? (
 				<BaseButton as="a" href={signInHref()} size="small">
 					<GitHub width={16} height={16} aria-hidden="true" />
