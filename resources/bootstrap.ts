@@ -143,12 +143,37 @@ const TASK_STATE_FIELDS = [
 	'uncompletableBy',
 	'uncompletableAt',
 ];
+// The state fields each status needs, so a hand-edited fixture can't load a
+// state the API would never produce (a claim nobody holds, say).
+const REQUIRED_STATE: Partial<Record<TaskStatus, string[]>> = {
+	claimed: ['assignedTo'],
+	completed: ['completedBy'],
+	flagged: ['uncompletableReason'],
+	uncompletable: ['uncompletableReason'],
+};
 const USER_FIELDS = ['name', 'avatarUrl', 'isAdmin', 'bannedAt', 'banReason', 'timeoutUntil'];
 
 function pick(input: Record<string, unknown>, fields: string[]): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
 	for (const field of fields) if (input[field] !== undefined) out[field] = input[field];
 	return out;
+}
+
+// Why a fixture task can't load as written, or null if it can.
+function seedTaskProblem(
+	input: Record<string, unknown>,
+	id: string,
+	status: TaskStatus,
+	claimHolders: Set<string>,
+): string | null {
+	if (!id) return 'id is required';
+	if (!TASK_STATUSES.includes(status)) return `unknown status "${String(input.status)}"`;
+	const missing = (REQUIRED_STATE[status] ?? []).filter((field) => !input[field]);
+	if (missing.length) return `status "${status}" needs ${missing.join(', ')}`;
+	if (status === 'claimed' && claimHolders.has(String(input.assignedTo))) {
+		return `${String(input.assignedTo)} already holds another claimed task`;
+	}
+	return null;
 }
 
 // Reads `<dir>/<name>.json` as { [name]: [...] } (or a bare array); a missing
@@ -161,7 +186,11 @@ async function readSeedList(dir: string, name: string): Promise<Record<string, u
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
 		throw error;
 	}
-	const list = Array.isArray(parsed) ? parsed : (parsed as Record<string, unknown>)[name];
+	const list = Array.isArray(parsed)
+		? parsed
+		: parsed && typeof parsed === 'object'
+			? (parsed as Record<string, unknown>)[name]
+			: undefined;
 	if (!Array.isArray(list)) throw new Error(`${dir}/${name}.json has no "${name}" array`);
 	return list as Record<string, unknown>[];
 }
@@ -171,7 +200,7 @@ if (process.env.LOCAL_SEED) {
 		const dir = process.env.LOCAL_SEED as string;
 		if (!isLocalInstance()) {
 			console.error(
-				`LOCAL_SEED ignored: OAUTH_REDIRECT_URI (${process.env.OAUTH_REDIRECT_URI}) is not a local origin. Fixtures load on local instances only.`,
+				'LOCAL_SEED ignored: OAUTH_REDIRECT_URI or HARPER_CLI_TARGET points at a non-local host. Fixtures load on local instances only.',
 			);
 			return;
 		}
@@ -221,20 +250,24 @@ if (process.env.LOCAL_SEED) {
 			}
 		}
 
+		// One active task per attendee, as the claim API enforces.
+		const claimHolders = new Set<string>();
 		for (const [index, input] of (await readSeedList(dir, 'tasks')).entries()) {
 			const id = String(input.id ?? '').trim();
 			const { task, problem } = validateTaskInput(input);
-			if (problem || !id) {
-				console.warn(`LOCAL_SEED tasks entry ${index + 1} skipped: ${problem ?? 'id is required'}`);
+			const status = (input.status ?? 'available') as TaskStatus;
+			const skip = problem ?? seedTaskProblem(input, id, status, claimHolders);
+			if (skip) {
+				console.warn(`LOCAL_SEED tasks entry ${index + 1} skipped: ${skip}`);
 				continue;
 			}
-			const status = TASK_STATUSES.includes(input.status as TaskStatus)
-				? (input.status as TaskStatus)
-				: 'available';
+			if (status === 'claimed') claimHolders.add(String(input.assignedTo));
+			// An open task carries no claim, completion, or flag fields.
+			const state = status === 'available' ? {} : pick(input, TASK_STATE_FIELDS);
 			if (await Task.get(id, SYSTEM)) {
 				counts.existing++;
 			} else {
-				await Task.put(record({ ...task, ...pick(input, TASK_STATE_FIELDS), id, status }), SYSTEM);
+				await Task.put(record({ ...task, ...state, id, status }), SYSTEM);
 				counts.tasks++;
 			}
 		}

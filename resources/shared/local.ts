@@ -5,17 +5,26 @@
  *
  * Every deployed environment sets OAUTH_REDIRECT_URI to its public origin;
  * locally it is unset (the OAuth plugin then defaults to localhost) or points
- * at a loopback host.
+ * at a loopback host. HARPER_CLI_TARGET is checked too: `harper deploy` ships
+ * the working directory's .env, so a .env that names a remote deploy target
+ * is a deploy .env, even if its OAuth settings look local.
  */
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
-export function isLocalInstance(): boolean {
-	const redirect = process.env.OAUTH_REDIRECT_URI;
-	if (!redirect) return true;
+export function isLoopbackHost(hostname: string): boolean {
+	return LOOPBACK_HOSTS.has(hostname) || hostname.endsWith('.localhost');
+}
+
+// Unset counts as local; anything that isn't a URL with a loopback host doesn't.
+function isLocalUrl(value: string | undefined): boolean {
+	if (!value) return true;
 	try {
-		const { hostname } = new URL(redirect);
-		return LOOPBACK_HOSTS.has(hostname) || hostname.endsWith('.localhost');
+		return isLoopbackHost(new URL(value).hostname);
 	} catch {
 		return false;
 	}
+}
+
+export function isLocalInstance(): boolean {
+	return isLocalUrl(process.env.OAUTH_REDIRECT_URI) && isLocalUrl(process.env.HARPER_CLI_TARGET);
 }
