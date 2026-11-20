@@ -79,8 +79,8 @@ Useful env vars for local dev (in `.env`):
   menu in the nav, or from a script `POST /api/dev/login` with `{"as": "fx_alice"}`. Works with `LOCAL_SEED=fixtures`
   (an admin, attendees, a banned and a timed-out user); any other login with an underscore
   is created as a plain attendee. Sign out as usual. Local instances only, and only for
-  logins with an underscore, which GitHub doesn't allow, so it can never act as a real
-  account.
+  requests from the same machine (`localhost`, no proxy) and logins with an underscore,
+  which GitHub doesn't allow, so it can't be reached remotely or act as a real account.
 - `ADMIN_GITHUB_LOGINS=your-login` — you become an admin on your next real sign-in.
 
 ### GitHub OAuth app

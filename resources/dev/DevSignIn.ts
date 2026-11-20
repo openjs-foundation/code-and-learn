@@ -11,23 +11,36 @@
  * navigation (Accept: text/html) outside /oauth, so a GET from the address bar
  * would never reach this resource. The nav's Dev menu posts, then reloads.
  *
- * Off unless LOCAL_DEV_SIGN_IN=true on a local instance (shared/local.ts), and
- * only for logins containing "_", which GitHub usernames can't: even switched
- * on in the wrong place, it can never act as a real account. When off, the
- * routes aren't registered at all (index.ts).
+ * Off unless LOCAL_DEV_SIGN_IN=true on a local instance (shared/local.ts).
+ * When off, the routes aren't registered at all (index.ts). When on, every
+ * request must also come from this machine (isLocalRequest: loopback address
+ * and Host, no proxy headers, no other site's Origin), and only logins
+ * containing "_" are accepted, which GitHub usernames can't have: even
+ * switched on in the wrong place, it can't be reached remotely and can never
+ * act as a real account.
  */
 import { getContext } from 'harper';
 import { json, OpenResource } from '../shared/auth.ts';
-import { isLocalInstance } from '../shared/local.ts';
+import { isLocalInstance, isLocalRequest, type RequestLike } from '../shared/local.ts';
 import { query, record, SYSTEM, User, type UserRecord } from '../shared/harper.ts';
 
 const requested = process.env.LOCAL_DEV_SIGN_IN === 'true';
 export const DEV_SIGN_IN = requested && isLocalInstance();
 if (requested && !DEV_SIGN_IN) {
 	console.error(
-		`LOCAL_DEV_SIGN_IN ignored: OAUTH_REDIRECT_URI (${process.env.OAUTH_REDIRECT_URI}) is not a local origin.`,
+		'LOCAL_DEV_SIGN_IN ignored: OAUTH_REDIRECT_URI or HARPER_CLI_TARGET points at a non-local host.',
 	);
 }
+
+// Whether this request may use dev sign-in; the nav's Dev menu shows only then.
+export function devSignInAllowed(): boolean {
+	return DEV_SIGN_IN && isLocalRequest(getContext() as RequestLike | undefined);
+}
+
+const NOT_LOCAL = {
+	error: 'dev_sign_in_local_only',
+	hint: 'Dev sign-in only accepts requests from this machine (localhost, no proxy).',
+};
 
 // Lowercase alphanumerics and hyphens with at least one "_" separator, e.g.
 // fx_alice: never a valid GitHub username.
@@ -44,6 +57,7 @@ interface SessionContext {
 export class DevSignIn extends OpenResource {
 	static async post(_target: unknown, data: Promise<unknown>) {
 		if (!DEV_SIGN_IN) return json(404, { error: 'not_found' });
+		if (!devSignInAllowed()) return json(403, NOT_LOCAL);
 
 		const body = ((await data) ?? {}) as { as?: unknown };
 		const login = String(body.as ?? '')
@@ -67,7 +81,9 @@ export class DevSignIn extends OpenResource {
 				hint: 'Enable sessions (authentication.enableSessions) to use dev sign-in.',
 			});
 		}
-		await session.update({ user: login });
+		// Drop any GitHub session this replaces, so the OAuth plugin doesn't keep
+		// validating (or report) the real account behind the dev user.
+		await session.update({ user: login, oauth: null, oauthUser: null });
 
 		return json(200, { ok: true, login });
 	}
@@ -76,6 +92,7 @@ export class DevSignIn extends OpenResource {
 export class DevUsers extends OpenResource {
 	static async get() {
 		if (!DEV_SIGN_IN) return json(404, { error: 'not_found' });
+		if (!devSignInAllowed()) return json(403, NOT_LOCAL);
 
 		const users: { login: string; name?: string; isAdmin: boolean }[] = [];
 		for await (const user of User.search(
