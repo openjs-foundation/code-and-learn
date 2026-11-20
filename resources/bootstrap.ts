@@ -5,8 +5,12 @@
  *                          data/contribution-tasks.json,data/manual.json — any
  *                          admin bulk-import shape) as the starting pool.
  * LOCAL_GUIDES_FILE=<path> loads the per-theme guides (data/contribution-guides.json).
+ * LOCAL_SEED=<dir>         loads a fixture set (fixtures/): tasks with their
+ *                          live state (claims, completions, flags), guides,
+ *                          users (including moderation), and settings. Local
+ *                          instances only; see shared/local.ts.
  *
- * Deterministic ids keep both loads idempotent across Harper's worker threads
+ * Deterministic ids keep every load idempotent across Harper's worker threads
  * and restarts — existing records are never overwritten, so admin edits stick.
  * Real deployments leave these unset and import the curated files from /admin.
  */
@@ -20,10 +24,13 @@ import {
 	SYSTEM,
 	Task,
 	User,
+	Setting,
 	type GuideRecord,
 	type TaskRecord,
+	type TaskStatus,
 } from './shared/harper.ts';
 import { LOCAL_DEV_LOGIN, LOCAL_DEV_USER } from './shared/auth.ts';
+import { isLocalInstance } from './shared/local.ts';
 import { validateTaskInput } from './shared/tasks.ts';
 import { validateGuideInput } from './Guides.ts';
 import { renderMarkdown } from './shared/render.ts';
@@ -112,6 +119,163 @@ if (process.env.LOCAL_GUIDES_FILE) {
 			}
 		}
 	})().catch((error) => console.error('LOCAL_GUIDES_FILE load failed:', error));
+}
+
+// A fixture set keeps each task's live state, unlike LOCAL_DATA_FILE (which
+// opens every task), and adds users and settings, so every claim, completion,
+// flag, and moderation state is there to work with from the first boot.
+const TASK_STATUSES: TaskStatus[] = [
+	'available',
+	'claimed',
+	'completed',
+	'flagged',
+	'uncompletable',
+];
+const TASK_STATE_FIELDS = [
+	'assignedTo',
+	'assignedName',
+	'assignedAt',
+	'assignedBy',
+	'completedBy',
+	'completedAt',
+	'evidenceUrl',
+	'uncompletableReason',
+	'uncompletableBy',
+	'uncompletableAt',
+];
+// The state fields each status needs, so a hand-edited fixture can't load a
+// state the API would never produce (a claim nobody holds, say).
+const REQUIRED_STATE: Partial<Record<TaskStatus, string[]>> = {
+	claimed: ['assignedTo'],
+	completed: ['completedBy'],
+	flagged: ['uncompletableReason'],
+	uncompletable: ['uncompletableReason'],
+};
+const USER_FIELDS = ['name', 'avatarUrl', 'isAdmin', 'bannedAt', 'banReason', 'timeoutUntil'];
+
+function pick(input: Record<string, unknown>, fields: string[]): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const field of fields) if (input[field] !== undefined) out[field] = input[field];
+	return out;
+}
+
+// Why a fixture task can't load as written, or null if it can.
+function seedTaskProblem(
+	input: Record<string, unknown>,
+	id: string,
+	status: TaskStatus,
+	claimHolders: Set<string>,
+): string | null {
+	if (!id) return 'id is required';
+	if (!TASK_STATUSES.includes(status)) return `unknown status "${String(input.status)}"`;
+	const missing = (REQUIRED_STATE[status] ?? []).filter((field) => !input[field]);
+	if (missing.length) return `status "${status}" needs ${missing.join(', ')}`;
+	if (status === 'claimed' && claimHolders.has(String(input.assignedTo))) {
+		return `${String(input.assignedTo)} already holds another claimed task`;
+	}
+	return null;
+}
+
+// Reads `<dir>/<name>.json` as { [name]: [...] } (or a bare array); a missing
+// file is an empty list, so a fixture set can leave parts out.
+async function readSeedList(dir: string, name: string): Promise<Record<string, unknown>[]> {
+	let parsed: unknown;
+	try {
+		parsed = await readJson(join(dir, `${name}.json`));
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+		throw error;
+	}
+	const list = Array.isArray(parsed)
+		? parsed
+		: parsed && typeof parsed === 'object'
+			? (parsed as Record<string, unknown>)[name]
+			: undefined;
+	if (!Array.isArray(list)) throw new Error(`${dir}/${name}.json has no "${name}" array`);
+	return list as Record<string, unknown>[];
+}
+
+if (process.env.LOCAL_SEED) {
+	(async () => {
+		const dir = process.env.LOCAL_SEED as string;
+		if (!isLocalInstance()) {
+			console.error(
+				'LOCAL_SEED ignored: OAUTH_REDIRECT_URI or HARPER_CLI_TARGET points at a non-local host. Fixtures load on local instances only.',
+			);
+			return;
+		}
+		const counts = { guides: 0, users: 0, settings: 0, tasks: 0, existing: 0 };
+
+		for (const [index, input] of (await readSeedList(dir, 'guides')).entries()) {
+			const { guide, problem } = validateGuideInput(input);
+			if (problem) {
+				console.warn(`LOCAL_SEED guides entry ${index + 1} skipped: ${problem}`);
+				continue;
+			}
+			if (await Guide.get(guide!.id, SYSTEM)) {
+				counts.existing++;
+			} else {
+				await Guide.put(record(guide!), SYSTEM);
+				counts.guides++;
+			}
+		}
+
+		for (const [index, input] of (await readSeedList(dir, 'users')).entries()) {
+			const id = String(input.id ?? '')
+				.trim()
+				.toLowerCase();
+			if (!id) {
+				console.warn(`LOCAL_SEED users entry ${index + 1} skipped: id is required`);
+				continue;
+			}
+			if (await User.get(id, SYSTEM)) {
+				counts.existing++;
+			} else {
+				await User.put(record({ id, ...pick(input, USER_FIELDS) }), SYSTEM);
+				counts.users++;
+			}
+		}
+
+		for (const [index, input] of (await readSeedList(dir, 'settings')).entries()) {
+			const id = String(input.id ?? '').trim();
+			if (!id) {
+				console.warn(`LOCAL_SEED settings entry ${index + 1} skipped: id is required`);
+				continue;
+			}
+			if (await Setting.get(id, SYSTEM)) {
+				counts.existing++;
+			} else {
+				await Setting.put(record({ id, value: input.value }), SYSTEM);
+				counts.settings++;
+			}
+		}
+
+		// One active task per attendee, as the claim API enforces.
+		const claimHolders = new Set<string>();
+		for (const [index, input] of (await readSeedList(dir, 'tasks')).entries()) {
+			const id = String(input.id ?? '').trim();
+			const { task, problem } = validateTaskInput(input);
+			const status = (input.status ?? 'available') as TaskStatus;
+			const skip = problem ?? seedTaskProblem(input, id, status, claimHolders);
+			if (skip) {
+				console.warn(`LOCAL_SEED tasks entry ${index + 1} skipped: ${skip}`);
+				continue;
+			}
+			if (status === 'claimed') claimHolders.add(String(input.assignedTo));
+			// An open task carries no claim, completion, or flag fields.
+			const state = status === 'available' ? {} : pick(input, TASK_STATE_FIELDS);
+			if (await Task.get(id, SYSTEM)) {
+				counts.existing++;
+			} else {
+				await Task.put(record({ ...task, ...state, id, status }), SYSTEM);
+				counts.tasks++;
+			}
+		}
+
+		console.log(
+			`LOCAL_SEED ${dir}: added ${counts.tasks} tasks, ${counts.guides} guides, ${counts.users} users, ${counts.settings} settings (${counts.existing} already present)`,
+		);
+	})().catch((error) => console.error('LOCAL_SEED load failed:', error));
 }
 
 if (LOCAL_DEV_LOGIN) {
